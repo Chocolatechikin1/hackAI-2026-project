@@ -2,6 +2,10 @@
 
 React Native (Expo) mobile app for planning and tracking degree progress. The UI matches the **Degree planner app wireframe** (Figma): Home, Schedule, AI Assistant/Chatbot, Courses, and More, with a bottom tab bar and raised center chat button.
 
+# Project context
+
+This repo is the **Degree Planner** mobile app: a React Native (Expo) app whose UI follows the Degree planner app wireframe. It uses a bottom tab bar (Home, Schedule, raised AI Chat, Courses, More), top bar with title and profile, and screens for progress, schedule, courses, chatbot, and more/settings/help.
+
 ## Requirements
 
 - **Node.js** 20.19.x or later  

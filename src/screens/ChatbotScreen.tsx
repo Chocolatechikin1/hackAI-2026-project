@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TextInput, Pressable, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TextInput, Pressable, KeyboardAvoidingView, Platform, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import Markdown from 'react-native-markdown-display';
 
 const styles = StyleSheet.create({
   screenPad: { padding: 16 },
@@ -71,27 +73,64 @@ export const ChatbotScreen: React.FC = () => {
     { id: 1, text: "Hello! I'm your AI academic assistant. How can I help you today?", isUser: false }
   ]);
   const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (inputText.trim()) {
+      const userText = inputText.trim();
       const newMessage: Message = {
-        id: messages.length + 1,
-        text: inputText,
+        id: Date.now(),
+        text: userText,
         isUser: true
       };
-      setMessages([...messages, newMessage]);
       
-      // Simulate bot response
-      setTimeout(() => {
-        const botResponse: Message = {
-          id: messages.length + 2,
-          text: "I understand you're asking about course planning. Let me help you with that...",
-          isUser: false
-        };
-        setMessages(prev => [...prev, botResponse]);
-      }, 1000);
-      
+      const newMessages = [...messages, newMessage];
+      setMessages(newMessages);
       setInputText('');
+      
+      const botMessageId = Date.now() + 1;
+      setMessages(prev => [...prev, { id: botMessageId, text: '', isUser: false }]);
+      setIsTyping(true);
+
+      try {
+        const ai = new GoogleGenAI({
+          apiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY as string,
+        });
+
+        const contents = newMessages.map(msg => ({
+          role: msg.isUser ? 'user' : 'model',
+          parts: [{ text: msg.text }]
+        }));
+
+        const response = await ai.models.generateContentStream({
+          model: 'gemini-3-flash-preview',
+          contents,
+          config: {
+            thinkingConfig: {
+              thinkingLevel: ThinkingLevel.HIGH,
+            }
+          }
+        });
+
+        let isFirstChunk = true;
+        for await (const chunk of response) {
+          if (isFirstChunk) {
+            setIsTyping(false);
+            isFirstChunk = false;
+          }
+          if (chunk.text) {
+             setMessages(prev => prev.map(msg => 
+               msg.id === botMessageId ? { ...msg, text: msg.text + chunk.text } : msg
+             ));
+          }
+        }
+      } catch (error) {
+        setIsTyping(false);
+        console.error("Gemini Error:", error);
+        setMessages(prev => prev.map(msg => 
+          msg.id === botMessageId ? { ...msg, text: "Sorry, I am having trouble connecting to the AI." } : msg
+        ));
+      }
     }
   };
 
@@ -111,11 +150,24 @@ export const ChatbotScreen: React.FC = () => {
               message.isUser ? styles.userMessage : styles.botMessage
             ]}
           >
-            <Text style={message.isUser ? styles.messageText : styles.botMessageText}>
-              {message.text}
-            </Text>
+            {message.isUser ? (
+              <Text style={styles.messageText}>
+                {message.text}
+              </Text>
+            ) : (
+              <Markdown style={{ body: styles.botMessageText }}>
+                {message.text}
+              </Markdown>
+            )}
           </View>
         ))}
+
+        {isTyping && (
+          <View style={[styles.messageContainer, styles.botMessage, { flexDirection: 'row', alignItems: 'center' }]}>
+            <ActivityIndicator size="small" color="#1F2937" style={{ marginRight: 8 }} />
+            <Text style={styles.botMessageText}>AI is thinking...</Text>
+          </View>
+        )}
       </ScrollView>
       
       <View style={styles.inputContainer}>

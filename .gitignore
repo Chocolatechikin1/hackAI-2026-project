@@ -50,3 +50,7 @@ Thumbs.db
 # Testing / coverage
 coverage
 *.lcov
+
+tsc.txt
+tsc_stdout.txt
+
