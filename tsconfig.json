@@ -1,4 +1,16 @@
 {
-  "compilerOptions": {},
+  "compilerOptions": {
+    "jsx": "react-native",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "target": "es2017",
+    "module": "esnext",
+    "lib": ["es2017", "dom"],
+    "types": ["react-native", "nativewind/types"]
+  },
   "extends": "expo/tsconfig.base"
 }
