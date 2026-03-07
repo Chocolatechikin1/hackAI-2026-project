@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Degree Planner",
+    "slug": "degree-planner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "platforms": ["ios", "android", "web"],
+    "jsEngine": "hermes",
+    "scheme": "degree-planner"
+  }
+}
+
