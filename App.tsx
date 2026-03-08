@@ -4,6 +4,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
 import { Platform } from 'react-native';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -22,6 +24,8 @@ const Stack = createNativeStackNavigator();
 
 // Main Tab Navigator
 function TabNavigator() {
+  const { theme } = useTheme();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -44,22 +48,26 @@ function TabNavigator() {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#374151',
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarActiveTintColor: theme.colors.tabActive,
+        tabBarInactiveTintColor: theme.colors.tabInactive,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: theme.colors.tabBackground,
           borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
+          borderTopColor: theme.colors.tabBackground,
         },
         headerStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: theme.colors.headerBackground,
           borderBottomWidth: 1,
-          borderBottomColor: '#E5E7EB',
+          borderBottomColor: theme.colors.headerBackground,
         },
-        headerTintColor: '#1F2937',
+        headerTintColor: theme.colors.headerText,
         headerTitleStyle: {
           fontWeight: '600',
+          fontFamily: theme.fonts.semiBold,
         },
+        tabBarLabelStyle: {
+          fontFamily: theme.fonts.medium,
+        }
       })}
     >
       <Tab.Screen 
@@ -93,8 +101,20 @@ function TabNavigator() {
 
 // Stack Navigator for sub-screens
 function AppNavigator() {
+  const { theme } = useTheme();
+
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.colors.headerBackground },
+        headerTintColor: theme.colors.headerText,
+        headerTitleStyle: {
+          fontWeight: '600',
+          fontFamily: theme.fonts.semiBold,
+        },
+        contentStyle: { backgroundColor: theme.colors.background }
+      }}
+    >
       <Stack.Screen 
         name="Main" 
         component={TabNavigator} 
@@ -130,11 +150,23 @@ export default function App() {
     }
   }, []);
 
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+  });
+
+  if (!fontsLoaded) {
+    return null; // or a loading screen
+  }
+
   return (
-    <NavigationContainer>
-      <StatusBar style="auto" />
+    <ThemeProvider>
+      <NavigationContainer>
+        <StatusBar style="auto" />
       <LeaveNowNotificationService />
-      <AppNavigator />
-    </NavigationContainer>
+        <AppNavigator />
+      </NavigationContainer>
+    </ThemeProvider>
   );
 }

@@ -1,81 +1,62 @@
-import React, { useState } from 'react';
-import {
-  View, Text, ScrollView, Pressable, StyleSheet, SafeAreaView,
-} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, SafeAreaView, Modal, ActivityIndicator, Platform } from 'react-native';
+import { ResponsiveButton as Pressable } from '../components/ResponsiveButton';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
+import { nebulaApi } from '../api';
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
-const SEMESTERS = [
+const CLASS_LEVELS = ['Undergraduate', 'Graduate'];
+
+interface CourseItem {
+  id: string;
+  code: string;
+  name: string;
+  credits: number;
+}
+
+interface TermPlan {
+  id: string;
+  name: string;
+  status: 'past' | 'current' | 'future';
+  courses: CourseItem[];
+}
+
+const INITIAL_TERMS: TermPlan[] = [
   {
-    label: 'Semester 1 & 2',
+    id: 'f24', name: 'Fall 2024', status: 'past',
     courses: [
-      { id: 'CS1436',   code: 'CS 1436',       name: 'Programming Fundamentals',              credits: 3, type: 'major',    prereqs: [] },
-      { id: 'CS1337',   code: 'CS 1337',        name: 'Computer Science I',                   credits: 3, type: 'major',    prereqs: ['CS1436'] },
-      { id: 'MATH2417', code: 'MATH 2413/2417', name: 'Calculus I',                           credits: 4, type: 'major',    prereqs: [] },
-      { id: 'MATH2419', code: 'MATH 2414/2419', name: 'Calculus II',                          credits: 4, type: 'major',    prereqs: ['MATH2417'] },
-      { id: 'ECS1100',  code: 'ECS 1100',       name: 'Intro to ENGR & CS',                   credits: 2, type: 'major',    prereqs: [] },
-      { id: 'CS1200',   code: 'CS 1200',        name: 'Introduction to CS and SE',             credits: 2, type: 'major',    prereqs: [] },
-      { id: 'PHYS2325', code: 'PHYS 2325/2125', name: 'Mechanics and Lab',                    credits: 4, type: 'major',    prereqs: ['MATH2417'] },
-      { id: 'CS2305',   code: 'CS 2305',        name: 'Discrete Mathematics',                 credits: 3, type: 'major',    prereqs: ['MATH2417'] },
-      { id: 'CORE1',    code: 'CORE',           name: 'Core Curriculum (1)',                  credits: 3, type: 'core',     prereqs: [] },
-      { id: 'CORE2',    code: 'CORE',           name: 'Core Curriculum (2)',                  credits: 3, type: 'core',     prereqs: [] },
-    ],
+      { id: 'CS1337', code: 'CS 1337', name: 'Computer Science I', credits: 3 },
+      { id: 'MATH2417', code: 'MATH 2417', name: 'Calculus I', credits: 4 },
+      { id: 'ECS1100', code: 'ECS 1100', name: 'Intro to ENGR & CS', credits: 2 },
+    ]
   },
   {
-    label: 'Semester 3 & 4',
+    id: 's25', name: 'Spring 2025', status: 'past',
     courses: [
-      { id: 'CS2336',   code: 'CS 2336/2337',   name: 'Computer Science II',                  credits: 3, type: 'major',    prereqs: ['CS1337'] },
-      { id: 'CS2340',   code: 'CS 2340',         name: 'Computer Architecture',                credits: 3, type: 'major',    prereqs: ['CS1337', 'CS2305', 'MATH2417'] },
-      { id: 'PHYS2326', code: 'PHYS 2326/2126',  name: 'Electricity & Magnetism and Lab',      credits: 4, type: 'major',    prereqs: ['PHYS2325', 'MATH2419'] },
-      { id: 'MATH2418', code: 'MATH 2418',        name: 'Linear Algebra',                      credits: 3, type: 'major',    prereqs: ['MATH2417'] },
-      { id: 'ECS2390',  code: 'ECS 2390',         name: 'Professional and Technical Comm.',    credits: 3, type: 'major',    prereqs: ['CORE1'] },
-      { id: 'CS3341',   code: 'CS 3341',          name: 'Probability & Statistics in CS & SE', credits: 3, type: 'major',    prereqs: ['MATH2419', 'CS2305', 'MATH2418'] },
-      { id: 'CS3345',   code: 'CS 3345',          name: 'Data Structures & Algorithms',        credits: 3, type: 'major',    prereqs: ['CS2305', 'CS2336'] },
-      { id: 'CS3377',   code: 'CS 3377',          name: 'Systems Programming',                 credits: 3, type: 'major',    prereqs: ['CS2336'] },
-      { id: 'CORE3',    code: 'CORE',             name: 'Core Curriculum (3)',                 credits: 3, type: 'core',     prereqs: [] },
-      { id: 'CORE4',    code: 'CORE',             name: 'Core Curriculum (4)',                 credits: 3, type: 'core',     prereqs: [] },
-    ],
+      { id: 'CS1436', code: 'CS 1436', name: 'Programming Fundamentals', credits: 3 },
+      { id: 'PHYS2325', code: 'PHYS 2325', name: 'Mechanics and Lab', credits: 4 },
+    ]
   },
   {
-    label: 'Semester 5 & 6',
+    id: 'f25', name: 'Fall 2025', status: 'past',
     courses: [
-      { id: 'CS4337',   code: 'CS 4337',          name: 'Programming Language Paradigms',      credits: 3, type: 'major',    prereqs: ['CS2336', 'CS2340'] },
-      { id: 'CS4349',   code: 'CS 4349',          name: 'Advanced Algorithm Design & Analysis',credits: 3, type: 'major',    prereqs: ['CS2305', 'CS3345'] },
-      { id: 'CS4341',   code: 'CS 4341/4141',     name: 'Digital Logic Computer Design & Lab', credits: 4, type: 'major',    prereqs: ['PHYS2326', 'CS2340'] },
-      { id: 'CS3162',   code: 'CS 3162',          name: 'Professional Responsibility',         credits: 2, type: 'major',    prereqs: ['ECS2390', 'CORE1'] },
-      { id: 'CS3354',   code: 'CS 3354',          name: 'Software Engineering',                credits: 3, type: 'major',    prereqs: ['CS2336', 'CS2305', 'ECS2390'] },
-      { id: 'CS4348',   code: 'CS 4348',          name: 'Operating Systems Concepts',          credits: 3, type: 'major',    prereqs: ['CS2340', 'CS3377', 'CS3345'] },
-      { id: 'TECH1',    code: 'TECH ELEC',        name: 'Technical Elective (1)',              credits: 3, type: 'elective', prereqs: [] },
-      { id: 'CORE5',    code: 'CORE',             name: 'Core Curriculum (5)',                 credits: 3, type: 'core',     prereqs: [] },
-      { id: 'FREE1',    code: 'FREE ELEC',        name: 'Free Elective (1)',                   credits: 3, type: 'elective', prereqs: [] },
-    ],
+      { id: 'CS2336', code: 'CS 2336', name: 'Computer Science II', credits: 3 },
+      { id: 'CS2340', code: 'CS 2340', name: 'Computer Architecture', credits: 3 },
+      { id: 'MATH2418', code: 'MATH 2418', name: 'Linear Algebra', credits: 3 },
+    ]
   },
   {
-    label: 'Semester 7 & 8',
+    id: 's26', name: 'Spring 2026', status: 'current',
     courses: [
-      { id: 'CS4384',   code: 'CS 4384',          name: 'Automata Theory',                     credits: 3, type: 'major',    prereqs: ['CS2305'] },
-      { id: 'CS4485',   code: 'CS 4485',          name: 'Computer Science Project',            credits: 3, type: 'major',    prereqs: ['CS3345', 'CS3354', 'TECH1', 'TECH2', 'TECH3'] },
-      { id: 'CS4347',   code: 'CS 4347',          name: 'Database Systems',                    credits: 3, type: 'major',    prereqs: ['CS3345'] },
-      { id: 'TECH2',    code: 'TECH ELEC',        name: 'Technical Elective (2)',              credits: 3, type: 'elective', prereqs: [] },
-      { id: 'TECH3',    code: 'TECH ELEC',        name: 'Technical Elective (3)',              credits: 3, type: 'elective', prereqs: [] },
-      { id: 'TECH4',    code: 'TECH ELEC',        name: 'Technical Elective (4)',              credits: 3, type: 'elective', prereqs: [] },
-      { id: 'FREE2',    code: 'FREE ELEC',        name: 'Free Elective (2)',                   credits: 3, type: 'elective', prereqs: [] },
-      { id: 'FREE3',    code: 'FREE ELEC',        name: 'Free Elective (1 SCH)',               credits: 1, type: 'elective', prereqs: [] },
-      { id: 'CORE6',    code: 'CORE',             name: 'Core Curriculum (6)',                 credits: 3, type: 'core',     prereqs: [] },
-    ],
+      { id: 'CS3345', code: 'CS 3345', name: 'Data Structures & Algorithms', credits: 3 },
+      { id: 'CS3377', code: 'CS 3377', name: 'Systems Programming', credits: 3 },
+    ]
   },
+  { id: 'f26', name: 'Fall 2026', status: 'future', courses: [] },
+  { id: 's27', name: 'Spring 2027', status: 'future', courses: [] }
 ];
 
-const TOTAL_CREDITS = SEMESTERS.flatMap(s => s.courses).reduce((sum, c) => sum + c.credits, 0);
-const allCoursesFlat = SEMESTERS.flatMap(s => s.courses);
-const courseById = Object.fromEntries(allCoursesFlat.map(c => [c.id, c]));
-
-const TYPE_COLORS = {
-  major:    { bg: '#EFF6FF', border: '#BFDBFE', badge: '#2563EB', badgeText: '#1E40AF' },
-  core:     { bg: '#F0FDF4', border: '#BBF7D0', badge: '#16A34A', badgeText: '#166534' },
-  elective: { bg: '#FFF7ED', border: '#FED7AA', badge: '#EA580C', badgeText: '#9A3412' },
-};
-const TYPE_LABEL = { major: 'Major', core: 'Core', elective: 'Elective' };
+const TOTAL_DEGREE_CREDITS = 120;
 
 const MOCK_GRADES = [
   {
@@ -102,134 +83,217 @@ const MOCK_GRADES = [
     courses: [
       { id: 'CS1436', code: 'CS 1436', name: 'Programming Fundamentals', grade: 'A' },
       { id: 'PHYS2325', code: 'PHYS 2325/2125', name: 'Mechanics and Lab', grade: 'A-' },
-      { id: 'CORE1', code: 'CORE', name: 'Core Curriculum (1)', grade: 'A' },
     ]
   }
 ];
 
+const createStyles = (theme: any) => StyleSheet.create({
+  root:         { flex: 1, backgroundColor: theme.colors.background },
+  safeArea:     { flex: 1, backgroundColor: theme.colors.surface },
 
-// ─── STYLES ──────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-  // shared
-  root:         { flex: 1, backgroundColor: '#F3F4F6' },
-  safeArea:     { flex: 1, backgroundColor: '#FFFFFF' },
-
-  // ── Home screen
-  homeHeader:   { backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  homeSubtitle: { fontSize: 10, letterSpacing: 2, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 4 },
-  homeTitle:    { fontSize: 24, fontWeight: '900', color: '#111827' },
+  homeHeader:   { backgroundColor: theme.colors.surface, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  homeSubtitle: { fontSize: 10, letterSpacing: 2, color: theme.colors.textSecondary, textTransform: 'uppercase', marginBottom: 4, fontFamily: theme.fonts.medium },
+  homeTitle:    { fontSize: 24, color: theme.colors.text, fontFamily: theme.fonts.semiBold },
   homeBody:     { padding: 16 },
 
-  // Course Tracker card
-  card:         { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 16, padding: 18 },
+  card:         { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 16, padding: 18 },
   cardTop:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  cardIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  cardIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center' },
-  cardTitle:    { fontSize: 13, fontWeight: '600', color: '#111827' },
-  cardSub:      { fontSize: 10, color: '#6B7280', marginTop: 1 },
+  cardTitle:    { fontSize: 13, color: theme.colors.text, fontFamily: theme.fonts.semiBold },
+  cardSub:      { fontSize: 10, color: theme.colors.textSecondary, marginTop: 1, fontFamily: theme.fonts.regular },
   barLabel:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-  barLabelText: { fontSize: 10, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 1.5 },
-  barLabelPct:  { fontSize: 10, color: '#2563EB', fontWeight: '600' },
-  barTrack:     { height: 6, backgroundColor: '#E5E7EB', borderRadius: 3, overflow: 'hidden' },
-  barFill:      { height: 6, backgroundColor: '#2563EB', borderRadius: 3 },
+  barLabelText: { fontSize: 10, color: theme.colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1.5, fontFamily: theme.fonts.medium },
+  barLabelPct:  { fontSize: 10, color: theme.colors.primary, fontFamily: theme.fonts.semiBold },
+  barTrack:     { height: 6, backgroundColor: theme.colors.border, borderRadius: 3, overflow: 'hidden' },
+  barFill:      { height: 6, backgroundColor: theme.colors.primary, borderRadius: 3 },
   creditRow:    { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  creditEarned: { fontSize: 10, color: '#2563EB' },
-  creditLeft:   { fontSize: 10, color: '#9CA3AF' },
+  creditEarned: { fontSize: 10, color: theme.colors.primary, fontFamily: theme.fonts.medium },
+  creditLeft:   { fontSize: 10, color: theme.colors.textSecondary, fontFamily: theme.fonts.medium },
 
-  // ── GradTracker screen
-  gtHeader:     { backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  gtHeader:     { backgroundColor: theme.colors.surface, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
   backBtn:      { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  backText:     { fontSize: 12, color: '#6B7280', letterSpacing: 1.5, marginLeft: 4 },
-  gtSchool:     { fontSize: 10, letterSpacing: 2, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 4 },
-  gtTitle:      { fontSize: 26, fontWeight: '900', color: '#111827', lineHeight: 30, marginBottom: 2 },
-  gtYear:       { fontSize: 11, color: '#6B7280', letterSpacing: 1 },
-  pctLabel:     { fontSize: 10, letterSpacing: 2, color: '#6B7280', textTransform: 'uppercase' },
-  pctNum:       { fontSize: 42, fontWeight: '900', color: '#2563EB', lineHeight: 48, marginTop: 2 },
-  pctSuffix:    { fontSize: 18, color: '#93C5FD' },
-  credNum:      { fontSize: 20, fontWeight: '600', color: '#111827', textAlign: 'right' },
-  credTotal:    { fontSize: 10, color: '#9CA3AF', letterSpacing: 1.5, textAlign: 'right' },
-  bigBarTrack:  { height: 10, backgroundColor: '#E5E7EB', borderRadius: 5, overflow: 'hidden', marginTop: 10 },
-  bigBarFill:   { height: 10, backgroundColor: '#2563EB', borderRadius: 5 },
+  backText:     { fontSize: 12, color: theme.colors.textSecondary, letterSpacing: 1.5, marginLeft: 4, fontFamily: theme.fonts.medium },
+  gtSchool:     { fontSize: 10, letterSpacing: 2, color: theme.colors.textSecondary, textTransform: 'uppercase', marginBottom: 4, fontFamily: theme.fonts.medium },
+  gtTitle:      { fontSize: 26, color: theme.colors.text, lineHeight: 30, marginBottom: 2, fontFamily: theme.fonts.semiBold },
+  gtYear:       { fontSize: 11, color: theme.colors.textSecondary, letterSpacing: 1, fontFamily: theme.fonts.regular },
+  pctLabel:     { fontSize: 10, letterSpacing: 2, color: theme.colors.textSecondary, textTransform: 'uppercase', fontFamily: theme.fonts.medium },
+  pctNum:       { fontSize: 42, color: theme.colors.primary, lineHeight: 48, marginTop: 2, fontFamily: theme.fonts.semiBold },
+  pctSuffix:    { fontSize: 18, color: theme.colors.primary },
+  credNum:      { fontSize: 20, color: theme.colors.text, textAlign: 'right', fontFamily: theme.fonts.semiBold },
+  credTotal:    { fontSize: 10, color: theme.colors.textSecondary, letterSpacing: 1.5, textAlign: 'right', fontFamily: theme.fonts.medium },
+  bigBarTrack:  { height: 10, backgroundColor: theme.colors.border, borderRadius: 5, overflow: 'hidden', marginTop: 10 },
+  bigBarFill:   { height: 10, backgroundColor: theme.colors.primary, borderRadius: 5 },
   statsRow:     { flexDirection: 'row', gap: 10, marginTop: 18 },
-  statBox:      { flex: 1, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, padding: 12, alignItems: 'center' },
-  statNum:      { fontSize: 22, fontWeight: '700' },
-  statLabel:    { fontSize: 9, color: '#6B7280', marginTop: 2, letterSpacing: 1.5, textTransform: 'uppercase' },
+  statBox:      { flex: 1, backgroundColor: theme.colors.background, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, padding: 12, alignItems: 'center' },
+  statNum:      { fontSize: 22, fontFamily: theme.fonts.semiBold, color: theme.colors.text },
+  statLabel:    { fontSize: 9, color: theme.colors.textSecondary, marginTop: 2, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: theme.fonts.regular },
 
-  // Semester cards
-  hint:         { fontSize: 9, color: '#9CA3AF', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 },
-  semCard:      { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, marginBottom: 10, overflow: 'hidden' },
+  hint:         { fontSize: 9, color: theme.colors.textSecondary, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14, fontFamily: theme.fonts.medium },
+  semCard:      { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, marginBottom: 10, overflow: 'hidden' },
   semHeader:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
-  semName:      { fontSize: 13, fontWeight: '600', color: '#111827' },
-  semCredits:   { fontSize: 11, color: '#6B7280', marginTop: 2 },
-  semPct:       { fontSize: 11, color: '#6B7280', textAlign: 'right' },
-  miniBarTrack: { width: 56, height: 3, backgroundColor: '#E5E7EB', borderRadius: 2, overflow: 'hidden', marginTop: 3 },
-  miniBarFill:  { height: 3, backgroundColor: '#2563EB', borderRadius: 2 },
-  divider:      { height: 1, backgroundColor: '#F3F4F6', marginBottom: 10 },
+  semName:      { fontSize: 13, color: theme.colors.text, fontFamily: theme.fonts.semiBold },
+  semCredits:   { fontSize: 11, color: theme.colors.textSecondary, marginTop: 2, fontFamily: theme.fonts.regular },
+  semCurrentBadge: { backgroundColor: theme.colors.background, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 },
+  semCurrentText: { fontSize: 10, color: theme.colors.primary, fontFamily: theme.fonts.medium, textTransform: 'uppercase' },
+  divider:      { height: 1, backgroundColor: theme.colors.border, marginBottom: 10 },
 
-  // Course row
-  courseRow:    { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 8, marginBottom: 5, borderWidth: 1 },
-  checkCircle:  { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginRight: 10, flexShrink: 0 },
-  courseName:   { fontSize: 12, fontWeight: '500' },
-  courseCode:   { fontSize: 10, marginTop: 1 },
-  prereqRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 3, marginTop: 5 },
-  prereqChip:   { fontSize: 9, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3, borderWidth: 1, overflow: 'hidden' },
-  tagBadge:     { fontSize: 9, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1 },
-  crText:       { fontSize: 10, color: '#9CA3AF', minWidth: 26, textAlign: 'right' },
+  courseRow:    { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 8, marginBottom: 5, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.background },
+  courseName:   { fontSize: 12, color: theme.colors.text, fontFamily: theme.fonts.medium },
+  courseCode:   { fontSize: 10, color: theme.colors.textSecondary, marginTop: 1, fontFamily: theme.fonts.regular },
+  crText:       { fontSize: 10, color: theme.colors.textSecondary, minWidth: 26, textAlign: 'right', fontFamily: theme.fonts.medium },
+  addCourseBtn: { marginVertical: 8, paddingVertical: 10, alignItems: 'center', borderRadius: 8, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.primary },
+  addCourseText:{ fontSize: 12, color: theme.colors.primary, fontFamily: theme.fonts.medium },
+  removeBtn:    { padding: 4 },
 
-  // Legend
-  legend:       { flexDirection: 'row', justifyContent: 'center', gap: 16, paddingTop: 4, paddingBottom: 32 },
-  legendDot:    { width: 7, height: 7, borderRadius: 2, marginRight: 5 },
-  legendText:   { fontSize: 9, color: '#6B7280', letterSpacing: 1, textTransform: 'uppercase' },
-
-  // ── Grades screen
-  gradeCard:       { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, padding: 16, marginBottom: 16 },
-  gradeTerm:       { fontSize: 14, fontWeight: '700', color: '#111827' },
-  gradeGpa:        { fontSize: 11, color: '#6B7280', marginTop: 2, marginBottom: 12 },
-  gradeRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  gradeCourseCode: { fontSize: 13, fontWeight: '600', color: '#111827' },
-  gradeCourseName: { fontSize: 11, color: '#6B7280', marginTop: 2, maxWidth: 220 },
-  gradeLetterWrap: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' },
-  gradeLetter:     { fontSize: 14, fontWeight: '700', color: '#2563EB' },
+  gradeCard:       { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, padding: 16, marginBottom: 16 },
+  gradeTerm:       { fontSize: 14, color: theme.colors.text, fontFamily: theme.fonts.semiBold },
+  gradeGpa:        { fontSize: 11, color: theme.colors.textSecondary, marginTop: 2, marginBottom: 12, fontFamily: theme.fonts.regular },
+  gradeRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: theme.colors.border },
+  gradeCourseCode: { fontSize: 13, color: theme.colors.text, fontFamily: theme.fonts.semiBold },
+  gradeCourseName: { fontSize: 11, color: theme.colors.textSecondary, marginTop: 2, maxWidth: 220, fontFamily: theme.fonts.regular },
+  gradeLetterWrap: { width: 32, height: 32, borderRadius: 8, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center' },
+  gradeLetter:     { fontSize: 14, color: theme.colors.primary, fontFamily: theme.fonts.semiBold },
+  
+  dropdownTrigger: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 12, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dropdownPlaceholder: { color: theme.colors.textSecondary, fontSize: 14, fontFamily: theme.fonts.regular },
+  dropdownValue: { color: theme.colors.text, fontSize: 14, fontFamily: theme.fonts.regular },
+  dropdownModal: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  dropdownList: { backgroundColor: theme.colors.surface, borderTopLeftRadius: 12, borderTopRightRadius: 12, maxHeight: 320, paddingBottom: 24, paddingTop: 12 },
+  dropdownItem: { padding: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.background },
+  dropdownItemText: { fontSize: 14, color: theme.colors.text, fontFamily: theme.fonts.medium },
+  modalContent: { backgroundColor: theme.colors.surface, padding: 20, marginHorizontal: 20, borderRadius: 12, maxHeight: '80%' },
+  modalTitle: { fontSize: 18, color: theme.colors.text, fontFamily: theme.fonts.semiBold, marginBottom: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center' },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
+  modalButton: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
+  cancelButton: { backgroundColor: theme.colors.background, marginRight: 8 },
+  saveButton: { backgroundColor: theme.colors.primary, marginLeft: 8 },
+  buttonText: { fontSize: 14, fontFamily: theme.fonts.semiBold },
+  cancelText: { color: theme.colors.textSecondary },
+  saveText: { color: theme.colors.surface },
 });
 
-// ─── GRAD TRACKER SCREEN ─────────────────────────────────────────────────────
-function GradTrackerScreen({ completed, setCompleted, onBack }: {
-  completed: Set<string>;
-  setCompleted: React.Dispatch<React.SetStateAction<Set<string>>>;
+function GradTrackerScreen({ terms, setTerms, onBack, theme }: {
+  terms: TermPlan[];
+  setTerms: React.Dispatch<React.SetStateAction<TermPlan[]>>;
   onBack: () => void;
+  theme: any;
 }) {
-  const [expandedSem, setExpandedSem] = useState<number | null>(null);
+  const s = createStyles(theme);
+  const [expandedSem, setExpandedSem] = useState<string | null>(null);
 
-  const isLocked = (course: any, comp: Set<string>) =>
-    course.prereqs.some((pid: string) => !comp.has(pid));
+  // Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [targetTermId, setTargetTermId] = useState<string | null>(null);
+  
+  // API State
+  const [subjectPrefixes, setSubjectPrefixes] = useState<{ label: string; value: string }[]>([]);
+  const [subjectPrefixesLoading, setSubjectPrefixesLoading] = useState(false);
+  const [selectedSubjectPrefix, setSelectedSubjectPrefix] = useState<string | null>(null);
+  const [selectedClassLevel, setSelectedClassLevel] = useState<string | null>(null);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<any | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState<'subject' | 'class' | 'course' | null>(null);
 
-  const toggle = (id: string) => {
-    const course = courseById[id];
-    setCompleted(prev => {
-      if (isLocked(course, prev)) return prev;
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  const earned = terms.filter(t => t.status === 'past' || t.status === 'current').flatMap(t => t.courses).reduce((sum, c) => sum + (c.credits || 0), 0);
+  const pct = Math.round((earned / TOTAL_DEGREE_CREDITS) * 100);
+  
+  const inProgress = terms.filter(t => t.status === 'current').flatMap(t => t.courses).reduce((sum, c) => sum + (c.credits || 0), 0);
+  const planned = terms.filter(t => t.status === 'future').flatMap(t => t.courses).reduce((sum, c) => sum + (c.credits || 0), 0);
+
+  useEffect(() => {
+    if (!showAddModal) return;
+    let cancelled = false;
+    setSubjectPrefixesLoading(true);
+    nebulaApi.autocompleteDAG()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const list = Array.isArray(data)
+          ? data
+            .map((a: any) => a.subject_prefix)
+            .filter((s) => typeof s === 'string' && s.length > 0)
+            .sort()
+            .map((s) => ({ label: s, value: s }))
+          : [];
+        setSubjectPrefixes(list);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setSubjectPrefixesLoading(false); });
+    return () => { cancelled = true; };
+  }, [showAddModal]);
+
+  useEffect(() => {
+    if (!selectedSubjectPrefix || !selectedClassLevel) {
+      setCourses([]);
+      setSelectedCourse(null);
+      return;
+    }
+    let cancelled = false;
+    setCoursesLoading(true);
+    nebulaApi.courseSearch({ subject_prefix: selectedSubjectPrefix, class_level: selectedClassLevel })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setCourses(Array.isArray(data) ? data : []);
+        setSelectedCourse(null);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setCoursesLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedSubjectPrefix, selectedClassLevel]);
+
+  const openAddModal = (termId: string) => {
+    setTargetTermId(termId);
+    setSelectedSubjectPrefix(null);
+    setSelectedClassLevel(null);
+    setSelectedCourse(null);
+    setShowAddModal(true);
   };
 
-  const earned = allCoursesFlat.filter(c => completed.has(c.id)).reduce((sum, c) => sum + c.credits, 0);
-  const pct = Math.round((earned / TOTAL_CREDITS) * 100);
+  const closeAddModal = () => {
+    setShowAddModal(false);
+    setTargetTermId(null);
+  };
 
-  const semProg = (sem: any) => {
-    const total = sem.courses.reduce((s: number, c: any) => s + c.credits, 0);
-    const done  = sem.courses.filter((c: any) => completed.has(c.id)).reduce((s: number, c: any) => s + c.credits, 0);
-    return { total, done, pct: Math.round((done / total) * 100) };
+  const handleAddCourse = () => {
+    if (!selectedCourse || !targetTermId) return;
+    
+    // Attempt to extract credits cleanly (sometimes course format varies. typical default is 3 if unknown)
+    const credArr = selectedCourse.credit_hours ? String(selectedCourse.credit_hours).split(/[ -]/) : ['3'];
+    const credits = parseInt(credArr[credArr.length - 1] || '3', 10);
+    
+    const newCourse: CourseItem = {
+      id: selectedCourse._id || Math.random().toString(),
+      code: `${selectedCourse.subject_prefix} ${selectedCourse.course_number}`,
+      name: selectedCourse.title || 'Unknown Course',
+      credits: isNaN(credits) ? 3 : credits
+    };
+
+    setTerms(prev => prev.map(term => {
+      if (term.id === targetTermId) {
+        return { ...term, courses: [...term.courses, newCourse] };
+      }
+      return term;
+    }));
+    closeAddModal();
+  };
+
+  const handleRemoveCourse = (termId: string, courseId: string) => {
+    setTerms(prev => prev.map(term => {
+      if (term.id === termId) {
+        return { ...term, courses: term.courses.filter(c => c.id !== courseId) };
+      }
+      return term;
+    }));
   };
 
   return (
     <SafeAreaView style={s.safeArea}>
       <ScrollView style={s.root} showsVerticalScrollIndicator={false}>
-
-        {/* Header */}
         <View style={s.gtHeader}>
           <Pressable style={s.backBtn} onPress={onBack}>
-            <Ionicons name="chevron-back" size={16} color="#6B7280" />
+            <Ionicons name="chevron-back" size={16} color={theme.colors.textSecondary} />
             <Text style={s.backText}>BACK</Text>
           </Pressable>
 
@@ -245,19 +309,19 @@ function GradTrackerScreen({ completed, setCompleted, onBack }: {
             </View>
             <View>
               <Text style={s.credNum}>{earned}</Text>
-              <Text style={s.credTotal}>/ {TOTAL_CREDITS} CREDITS</Text>
+              <Text style={s.credTotal}>/ {TOTAL_DEGREE_CREDITS} CREDITS</Text>
             </View>
           </View>
           <View style={s.bigBarTrack}>
-            <View style={[s.bigBarFill, { width: `${pct}%` as any }]} />
+            <View style={[s.bigBarFill, { width: `${Math.min(pct, 100)}%` as any }]} />
           </View>
 
           {/* Stats */}
           <View style={s.statsRow}>
             {[
-              { label: 'Completed',    val: completed.size,                        color: '#2563EB' },
-              { label: 'Remaining',    val: allCoursesFlat.length - completed.size, color: '#DC2626' },
-              { label: 'Credits Left', val: TOTAL_CREDITS - earned,                color: '#7C3AED' },
+              { label: 'Earned',    val: earned, color: theme.colors.text },
+              { label: 'In Progress', val: inProgress, color: theme.colors.primary },
+              { label: 'Planned', val: planned, color: '#7C3AED' },
             ].map(stat => (
               <View key={stat.label} style={s.statBox}>
                 <Text style={[s.statNum, { color: stat.color }]}>{stat.val}</Text>
@@ -267,139 +331,190 @@ function GradTrackerScreen({ completed, setCompleted, onBack }: {
           </View>
         </View>
 
-        {/* Semester list */}
         <View style={{ padding: 16 }}>
-          <Text style={s.hint}>Tap semester to expand · tap course to mark complete</Text>
+          <Text style={s.hint}>Tap term to view and edit schedule</Text>
 
-          {SEMESTERS.map((sem, si) => {
-            const sp = semProg(sem);
-            const isOpen = expandedSem === si;
+          {terms.map(term => {
+            const isOpen = expandedSem === term.id;
+            const termCredits = term.courses.reduce((sum, c) => sum + (c.credits || 0), 0);
+            
             return (
-              <View key={si} style={s.semCard}>
-                <Pressable style={s.semHeader} onPress={() => setExpandedSem(isOpen ? null : si)}>
-                  <View>
-                    <Text style={s.semName}>{sem.label}</Text>
-                    <Text style={s.semCredits}>{sp.done} / {sp.total} credits</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end', flexDirection: 'row', gap: 10 }}>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={[s.semPct, sp.pct === 100 && { color: '#2563EB' }]}>{sp.pct}%</Text>
-                      <View style={s.miniBarTrack}>
-                        <View style={[s.miniBarFill, { width: `${sp.pct}%` as any, backgroundColor: sp.pct === 100 ? '#2563EB' : '#2563EB' }]} />
-                      </View>
+              <View key={term.id} style={[s.semCard, term.status === 'current' && { borderColor: theme.colors.primary }]}>
+                <Pressable style={s.semHeader} onPress={() => setExpandedSem(isOpen ? null : term.id)}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View>
+                      <Text style={s.semName}>{term.name}</Text>
+                      <Text style={s.semCredits}>{termCredits} credits</Text>
                     </View>
-                    <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color="#9CA3AF" />
+                    {term.status === 'current' && (
+                      <View style={s.semCurrentBadge}>
+                        <Text style={s.semCurrentText}>Current</Text>
+                      </View>
+                    )}
                   </View>
+                  <Ionicons name={isOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={theme.colors.textSecondary} />
                 </Pressable>
 
                 {isOpen && (
                   <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
                     <View style={s.divider} />
-                    {sem.courses.map((course: any) => {
-                      const done   = completed.has(course.id);
-                      const locked = isLocked(course, completed);
-                      const tc     = TYPE_COLORS[course.type as keyof typeof TYPE_COLORS];
-                      return (
-                        <Pressable
-                          key={course.id}
-                          onPress={() => toggle(course.id)}
-                          style={[
-                            s.courseRow,
-                            {
-                              backgroundColor: done ? '#EFF6FF' : locked ? '#F9FAFB' : tc.bg,
-                              borderColor:     done ? '#BFDBFE' : locked ? '#E5E7EB' : tc.border,
-                              opacity: locked ? 0.6 : done ? 0.7 : 1,
-                            },
-                          ]}
-                        >
-                          {/* Check / Lock */}
-                          <View style={[s.checkCircle, {
-                            borderColor:     locked ? '#D1D5DB' : done ? '#2563EB' : '#D1D5DB',
-                            backgroundColor: done ? '#2563EB' : 'transparent',
-                          }]}>
-                            {done   && <Ionicons name="checkmark" size={11} color="#fff" />}
-                            {locked && <Ionicons name="lock-closed" size={9} color="#9CA3AF" />}
-                          </View>
-
-                          {/* Info */}
+                    {term.courses.length === 0 ? (
+                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 8, textAlign: 'center' }}>No courses scheduled</Text>
+                    ) : (
+                      term.courses.map(course => (
+                        <View key={course.id} style={s.courseRow}>
                           <View style={{ flex: 1, minWidth: 0 }}>
-                            <Text
-                              numberOfLines={1}
-                              style={[s.courseName, { color: done ? '#6B7280' : locked ? '#9CA3AF' : '#111827' }]}
-                            >
-                              {course.name}
-                            </Text>
-                            <Text style={[s.courseCode, { color: locked ? '#D1D5DB' : '#6B7280' }]}>
-                              {course.code}
-                            </Text>
-
-                            {/* Prereq chips */}
-                            {course.prereqs.length > 0 && (
-                              <View style={s.prereqRow}>
-                                {course.prereqs.map((pid: string) => {
-                                  const met   = completed.has(pid);
-                                  const pCode = courseById[pid]?.code || pid;
-                                  return (
-                                    <Text
-                                      key={pid}
-                                      style={[s.prereqChip, {
-                                        backgroundColor: met ? '#F0FDF4' : '#FEF2F2',
-                                        color:           met ? '#16A34A' : '#DC2626',
-                                        borderColor:     met ? '#BBF7D0' : '#FECACA',
-                                      }]}
-                                    >
-                                      {met ? '✓ ' : '✗ '}{pCode}
-                                    </Text>
-                                  );
-                                })}
-                              </View>
+                            <Text numberOfLines={1} style={s.courseName}>{course.name}</Text>
+                            <Text style={s.courseCode}>{course.code}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8 }}>
+                            <Text style={s.crText}>{course.credits}cr</Text>
+                            {term.status === 'future' && (
+                              <Pressable style={s.removeBtn} onPress={() => handleRemoveCourse(term.id, course.id)}>
+                                <Ionicons name="close-circle" size={18} color={theme.colors.textSecondary} />
+                              </Pressable>
                             )}
                           </View>
-
-                          {/* Badge + credits */}
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8 }}>
-                            <Text style={[s.tagBadge, {
-                              backgroundColor: tc.bg,
-                              color:           locked ? '#9CA3AF' : tc.badgeText,
-                              borderColor:     tc.border,
-                            }]}>
-                              {TYPE_LABEL[course.type as keyof typeof TYPE_LABEL]}
-                            </Text>
-                            <Text style={s.crText}>{course.credits}cr</Text>
-                          </View>
-                        </Pressable>
-                      );
-                    })}
+                        </View>
+                      ))
+                    )}
+                    
+                    {term.status === 'future' && (
+                      <Pressable style={s.addCourseBtn} onPress={() => openAddModal(term.id)}>
+                        <Text style={s.addCourseText}>+ Add Course</Text>
+                      </Pressable>
+                    )}
                   </View>
                 )}
               </View>
             );
           })}
-
-          {/* Legend */}
-          <View style={s.legend}>
-            {Object.entries(TYPE_LABEL).map(([k, v]) => (
-              <View key={k} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={[s.legendDot, { backgroundColor: TYPE_COLORS[k as keyof typeof TYPE_COLORS].badge }]} />
-                <Text style={s.legendText}>{v}</Text>
-              </View>
-            ))}
-          </View>
         </View>
       </ScrollView>
+
+      {/* Nebula Course Search Modal */}
+      <Modal visible={showAddModal} transparent animationType="fade">
+        <View style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <Text style={s.modalTitle}>Add Course</Text>
+            
+            {subjectPrefixesLoading ? (
+              <View style={{ marginVertical: 16, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <Text style={{ marginTop: 8, fontSize: 13, color: theme.colors.textSecondary }}>Loading subjects…</Text>
+              </View>
+            ) : (
+              <>
+                <Pressable style={s.dropdownTrigger} onPress={() => setDropdownOpen(o => o === 'subject' ? null : 'subject')}>
+                  <Text style={selectedSubjectPrefix ? s.dropdownValue : s.dropdownPlaceholder}>
+                    {selectedSubjectPrefix ?? 'Subject prefix'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color={theme.colors.textSecondary} />
+                </Pressable>
+                
+                <Pressable style={s.dropdownTrigger} onPress={() => setDropdownOpen(o => o === 'class' ? null : 'class')}>
+                  <Text style={selectedClassLevel ? s.dropdownValue : s.dropdownPlaceholder}>
+                    {selectedClassLevel ?? 'Class level'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color={theme.colors.textSecondary} />
+                </Pressable>
+              </>
+            )}
+
+            {!subjectPrefixesLoading && selectedSubjectPrefix && selectedClassLevel && (
+              coursesLoading ? (
+                <View style={{ marginVertical: 16, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                  <Text style={{ marginTop: 8, fontSize: 13, color: theme.colors.textSecondary }}>Loading courses…</Text>
+                </View>
+              ) : courses.length === 0 ? (
+                <Text style={{ marginVertical: 12, fontSize: 14, color: theme.colors.textSecondary }}>No courses found.</Text>
+              ) : (
+                <Pressable style={s.dropdownTrigger} onPress={() => setDropdownOpen(o => o === 'course' ? null : 'course')}>
+                  <Text style={selectedCourse ? s.dropdownValue : s.dropdownPlaceholder}>
+                    {selectedCourse ? `${selectedCourse.subject_prefix} ${selectedCourse.course_number}` : 'Select course'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color={theme.colors.textSecondary} />
+                </Pressable>
+              )
+            )}
+
+            <View style={s.modalButtons}>
+              <Pressable style={[s.modalButton, s.cancelButton]} onPress={closeAddModal}>
+                <Text style={[s.buttonText, s.cancelText]}>Cancel</Text>
+              </Pressable>
+              <Pressable 
+                style={[s.modalButton, s.saveButton, !selectedCourse && { opacity: 0.5 }]} 
+                onPress={selectedCourse ? handleAddCourse : undefined}
+                disabled={!selectedCourse}
+              >
+                <Text style={[s.buttonText, s.saveText]}>Add</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
+        {/* Dropdown Lists for Modal */}
+        {dropdownOpen === 'subject' && (
+          <Modal visible transparent animationType="fade">
+             <Pressable style={s.dropdownModal} onPress={() => setDropdownOpen(null)}>
+               <Pressable style={s.dropdownList} onPress={(e) => e.stopPropagation()}>
+                 <ScrollView style={{ maxHeight: 300 }}>
+                   {subjectPrefixes.map((p) => (
+                     <Pressable key={p.value} style={s.dropdownItem} onPress={() => { setSelectedSubjectPrefix(p.value); setDropdownOpen(null); }}>
+                       <Text style={s.dropdownItemText}>{p.label}</Text>
+                     </Pressable>
+                   ))}
+                 </ScrollView>
+               </Pressable>
+             </Pressable>
+          </Modal>
+        )}
+        {dropdownOpen === 'class' && (
+          <Modal visible transparent animationType="fade">
+             <Pressable style={s.dropdownModal} onPress={() => setDropdownOpen(null)}>
+               <Pressable style={s.dropdownList} onPress={(e) => e.stopPropagation()}>
+                 <ScrollView style={{ maxHeight: 300 }}>
+                   {CLASS_LEVELS.map((l) => (
+                     <Pressable key={l} style={s.dropdownItem} onPress={() => { setSelectedClassLevel(l); setDropdownOpen(null); }}>
+                       <Text style={s.dropdownItemText}>{l}</Text>
+                     </Pressable>
+                   ))}
+                 </ScrollView>
+               </Pressable>
+             </Pressable>
+          </Modal>
+        )}
+        {dropdownOpen === 'course' && (
+          <Modal visible transparent animationType="fade">
+             <Pressable style={s.dropdownModal} onPress={() => setDropdownOpen(null)}>
+               <Pressable style={s.dropdownList} onPress={(e) => e.stopPropagation()}>
+                 <ScrollView style={{ maxHeight: 300 }}>
+                   {courses.map((c) => (
+                     <Pressable key={c._id ?? `${c.subject_prefix}-${c.course_number}`} style={s.dropdownItem} onPress={() => { setSelectedCourse(c); setDropdownOpen(null); }}>
+                       <Text style={s.dropdownItemText}>
+                         {c.subject_prefix} {c.course_number} – {c.title ?? ''}
+                       </Text>
+                     </Pressable>
+                   ))}
+                 </ScrollView>
+               </Pressable>
+             </Pressable>
+          </Modal>
+        )}
+      </Modal>
     </SafeAreaView>
   );
 }
 
-// ─── GRADES SCREEN ───────────────────────────────────────────────────────────
-function GradesScreen({ onBack }: { onBack: () => void }) {
+function GradesScreen({ onBack, theme }: { onBack: () => void; theme: any }) {
+  const s = createStyles(theme);
   return (
     <SafeAreaView style={s.safeArea}>
       <ScrollView style={s.root} showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <View style={s.gtHeader}>
           <Pressable style={s.backBtn} onPress={onBack}>
-            <Ionicons name="chevron-back" size={16} color="#6B7280" />
+            <Ionicons name="chevron-back" size={16} color={theme.colors.textSecondary} />
             <Text style={s.backText}>BACK</Text>
           </Pressable>
 
@@ -408,7 +523,6 @@ function GradesScreen({ onBack }: { onBack: () => void }) {
           <Text style={s.gtYear}>Cumulative GPA: 3.89</Text>
         </View>
 
-        {/* Semesters */}
         <View style={{ padding: 16 }}>
           {MOCK_GRADES.map((term, i) => (
             <View key={i} style={s.gradeCard}>
@@ -433,54 +547,45 @@ function GradesScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-// ─── HOME SCREEN ─────────────────────────────────────────────────────────────
 export const CoursesScreen: React.FC = () => {
-  const [page, setPage]           = useState<'home' | 'gradtracker' | 'grades'>('home');
-  const [completed, setCompleted] = useState<Set<string>>(new Set([
-    'CS1436', 'PHYS2325', 'CORE1', // Spring 2024
-    'CS1337', 'MATH2417', 'ECS1100', // Fall 2024
-  ]));
+  const { theme } = useTheme();
+  const s = createStyles(theme);
+  const [page, setPage] = useState<'home' | 'gradtracker' | 'grades'>('home');
+  const [terms, setTerms] = useState<TermPlan[]>(INITIAL_TERMS);
 
-  const earned = allCoursesFlat.filter(c => completed.has(c.id)).reduce((sum, c) => sum + c.credits, 0);
-  const pct    = Math.round((earned / TOTAL_CREDITS) * 100);
+  const earned = terms.filter(t => t.status === 'past' || t.status === 'current').flatMap(t => t.courses).reduce((sum, c) => sum + (c.credits || 0), 0);
+  const pct = Math.round((earned / TOTAL_DEGREE_CREDITS) * 100);
 
   if (page === 'gradtracker') {
-    return <GradTrackerScreen completed={completed} setCompleted={setCompleted} onBack={() => setPage('home')} />;
+    return <GradTrackerScreen terms={terms} setTerms={setTerms} onBack={() => setPage('home')} theme={theme} />;
   }
   if (page === 'grades') {
-    return <GradesScreen onBack={() => setPage('home')} />;
+    return <GradesScreen onBack={() => setPage('home')} theme={theme} />;
   }
 
   return (
     <SafeAreaView style={s.safeArea}>
       <ScrollView style={s.root} showsVerticalScrollIndicator={false}>
-
-        {/* Header */}
         <View style={s.homeHeader}>
           <Text style={s.homeSubtitle}>UTD · CS Department</Text>
           <Text style={s.homeTitle}>My Dashboard</Text>
         </View>
 
-        {/* Cards */}
         <View style={s.homeBody}>
-
-          {/* Course Tracker card */}
           <Pressable style={s.card} onPress={() => setPage('gradtracker')}>
-            {/* Top row */}
             <View style={s.cardTop}>
               <View style={s.cardTitleRow}>
-                <View style={s.cardIconWrap}>
-                  <Ionicons name="school-outline" size={18} color="#2563EB" />
+                <View style={[s.cardIconWrap, { backgroundColor: theme.colors.background }]}>
+                  <Ionicons name="school-outline" size={18} color={theme.colors.primary} />
                 </View>
                 <View>
                   <Text style={s.cardTitle}>Course Tracker</Text>
                   <Text style={s.cardSub}>BS Computer Science · 2025–26</Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
             </View>
 
-            {/* Progress bar */}
             <View style={s.barLabel}>
               <Text style={s.barLabelText}>Graduation Progress</Text>
               <Text style={s.barLabelPct}>{pct}%</Text>
@@ -489,29 +594,26 @@ export const CoursesScreen: React.FC = () => {
               <View style={[s.barFill, { width: `${pct}%` as any }]} />
             </View>
 
-            {/* Credit summary */}
             <View style={s.creditRow}>
               <Text style={s.creditEarned}>{earned} credits earned</Text>
-              <Text style={s.creditLeft}>{TOTAL_CREDITS - earned} remaining</Text>
+              <Text style={s.creditLeft}>{TOTAL_DEGREE_CREDITS - earned} remaining</Text>
             </View>
           </Pressable>
 
-          {/* Grades card */}
           <Pressable style={[s.card, { marginTop: 16 }]} onPress={() => setPage('grades')}>
             <View style={s.cardTop}>
               <View style={s.cardTitleRow}>
-                <View style={[s.cardIconWrap, { backgroundColor: '#F0FDF4' }]}>
-                  <Ionicons name="document-text-outline" size={18} color="#16A34A" />
+                <View style={[s.cardIconWrap, { backgroundColor: theme.colors.background }]}>
+                  <Ionicons name="document-text-outline" size={18} color={theme.colors.primary} />
                 </View>
                 <View>
                   <Text style={s.cardTitle}>Academic Grades</Text>
                   <Text style={s.cardSub}>View transcripts by term</Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
             </View>
           </Pressable>
-
         </View>
       </ScrollView>
     </SafeAreaView>

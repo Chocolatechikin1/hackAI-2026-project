@@ -4,6 +4,7 @@ import {
   Linking, Platform, Alert, TextInput, Animated, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 // Conditional imports for native modules
 let MapView: any = null;
@@ -208,15 +209,16 @@ function openNavigation(lat: number, lng: number) {
 }
 
 // Web fallback — shown instead of the native map on web
-const WebMapFallback: React.FC = () => (
-  <View style={styles.webFallback}>
-    <Ionicons name="map" size={48} color="#3B82F6" />
-    <Text style={styles.webFallbackTitle}>UTD Campus Map</Text>
-    <Text style={styles.webFallbackSub}>Search for a building below to get walking directions</Text>
+const WebMapFallback = ({ theme }: { theme: any }) => (
+  <View style={[styles.webFallback, { backgroundColor: theme.colors.background }]}>
+    <Ionicons name="map" size={48} color={theme.colors.primary} />
+    <Text style={[styles.webFallbackTitle, { color: theme.colors.text, fontFamily: theme.fonts.semiBold }]}>UTD Campus Map</Text>
+    <Text style={[styles.webFallbackSub, { color: theme.colors.textSecondary, fontFamily: theme.fonts.regular }]}>Search for a building below to get walking directions</Text>
   </View>
 );
 
 export const MapScreen: React.FC = () => {
+  const { theme } = useTheme();
   const mapRef = useRef<any>(null);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -283,7 +285,7 @@ export const MapScreen: React.FC = () => {
 
       {/* ── MAP (mobile) or FALLBACK (web) ── */}
       {Platform.OS === 'web' ? (
-        <WebMapFallback />
+        <WebMapFallback theme={theme} />
       ) : (
         <MapView
           ref={mapRef}
@@ -300,7 +302,7 @@ export const MapScreen: React.FC = () => {
               coordinate={{ latitude: b.lat, longitude: b.lng }}
               title={b.name}
               description={b.abbr ?? undefined}
-              pinColor={selected?.id === b.id ? '#EF4444' : '#3B82F6'}
+              pinColor={selected?.id === b.id ? theme.colors.error : theme.colors.primary}
               onPress={() => selectBuilding(b)}
             />
           ))}
@@ -309,25 +311,25 @@ export const MapScreen: React.FC = () => {
 
       {/* ── SEARCH BAR ── */}
       <View style={styles.searchWrapper}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color="#6B7280" style={{ marginRight: 8 }} />
+        <View style={[styles.searchBox, { backgroundColor: theme.colors.surface }]}>
+          <Ionicons name="search" size={18} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.colors.text, fontFamily: theme.fonts.regular }]}
             placeholder="Search UTD buildings…"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.colors.textSecondary}
             value={search}
             onChangeText={(t) => { setSearch(t); setShowList(true); }}
             onFocus={() => setShowList(true)}
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => { setSearch(''); setShowList(false); }}>
-              <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+              <Ionicons name="close-circle" size={18} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
 
         {showList && (
-          <View style={styles.dropdown}>
+          <View style={[styles.dropdown, { backgroundColor: theme.colors.surface }]}>
             <FlatList
               data={sorted.slice(0, 30)}
               keyExtractor={(b) => b.id}
@@ -338,16 +340,16 @@ export const MapScreen: React.FC = () => {
                   : null;
                 return (
                   <TouchableOpacity style={styles.dropdownItem} onPress={() => selectBuilding(item)}>
-                    <Ionicons name="business" size={16} color="#3B82F6" style={{ marginRight: 10 }} />
+                    <Ionicons name="business" size={16} color={theme.colors.primary} style={{ marginRight: 10 }} />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.dropdownName} numberOfLines={1}>{item.name}</Text>
-                      {dist && <Text style={styles.dropdownDist}>{dist} away</Text>}
+                      <Text style={[styles.dropdownName, { color: theme.colors.text, fontFamily: theme.fonts.medium }]} numberOfLines={1}>{item.name}</Text>
+                      {dist && <Text style={[styles.dropdownDist, { color: theme.colors.textSecondary, fontFamily: theme.fonts.regular }]}>{dist} away</Text>}
                     </View>
-                    {item.abbr && <Text style={styles.dropdownAbbr}>{item.abbr}</Text>}
+                    {item.abbr && <Text style={[styles.dropdownAbbr, { color: theme.colors.primary, fontFamily: theme.fonts.semiBold }]}>{item.abbr}</Text>}
                   </TouchableOpacity>
                 );
               }}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />}
             />
           </View>
         )}
@@ -356,7 +358,7 @@ export const MapScreen: React.FC = () => {
       {/* ── LOCATE ME (mobile only) ── */}
       {Platform.OS !== 'web' && (
         <TouchableOpacity
-          style={styles.locateBtn}
+          style={[styles.locateBtn, { backgroundColor: theme.colors.surface }]}
           onPress={() => {
             if (!userLocation) {
               Alert.alert('Location unavailable', locationError ?? 'Cannot get location.');
@@ -367,7 +369,7 @@ export const MapScreen: React.FC = () => {
             );
           }}
         >
-          <Ionicons name="locate" size={22} color="#3B82F6" />
+          <Ionicons name="locate" size={22} color={theme.colors.primary} />
         </TouchableOpacity>
       )}
 
@@ -382,18 +384,18 @@ export const MapScreen: React.FC = () => {
 
       {/* ── SELECTED BUILDING PANEL ── */}
       {selected && (
-        <Animated.View style={[styles.panel, { transform: [{ translateY: panelTranslate }] }]}>
-          <View style={styles.panelHandle} />
+        <Animated.View style={[styles.panel, { backgroundColor: theme.colors.surface, transform: [{ translateY: panelTranslate }] }]}>
+          <View style={[styles.panelHandle, { backgroundColor: theme.colors.border }]} />
           <View style={styles.panelHeader}>
-            <View style={[styles.abbrBadge, !selected.abbr && { backgroundColor: '#F3F4F6' }]}>
+            <View style={[styles.abbrBadge, { backgroundColor: theme.colors.primary }, !selected.abbr && { backgroundColor: theme.colors.background }]}>
               {selected.abbr
-                ? <Text style={styles.abbrText}>{selected.abbr}</Text>
-                : <Ionicons name="business" size={16} color="#6B7280" />}
+                ? <Text style={[styles.abbrText, { fontFamily: theme.fonts.semiBold }]}>{selected.abbr}</Text>
+                : <Ionicons name="business" size={16} color={theme.colors.textSecondary} />}
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.panelName} numberOfLines={2}>{selected.name}</Text>
+              <Text style={[styles.panelName, { color: theme.colors.text, fontFamily: theme.fonts.semiBold }]} numberOfLines={2}>{selected.name}</Text>
               {userLocation && (
-                <Text style={styles.panelDist}>
+                <Text style={[styles.panelDist, { color: theme.colors.textSecondary, fontFamily: theme.fonts.regular }]}>
                   {distLabel(haversineKm(userLocation.latitude, userLocation.longitude, selected.lat, selected.lng))} from you
                 </Text>
               )}
@@ -402,15 +404,15 @@ export const MapScreen: React.FC = () => {
               onPress={() => setSelected(null)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close" size={22} color="#9CA3AF" />
+              <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.navBtn} onPress={() => openNavigation(selected.lat, selected.lng)}>
-            <Ionicons name="navigate" size={20} color="#FFF" style={{ marginRight: 8 }} />
-            <Text style={styles.navBtnText}>Navigate Here</Text>
+          <TouchableOpacity style={[styles.navBtn, { backgroundColor: theme.colors.primary }]} onPress={() => openNavigation(selected.lat, selected.lng)}>
+            <Ionicons name="navigate" size={20} color={theme.colors.surface} style={{ marginRight: 8 }} />
+            <Text style={[styles.navBtnText, { color: theme.colors.surface, fontFamily: theme.fonts.semiBold }]}>Navigate Here</Text>
           </TouchableOpacity>
-          <Text style={styles.navHint}>Opens Google Maps / Apple Maps · walking directions</Text>
+          <Text style={[styles.navHint, { color: theme.colors.textSecondary, fontFamily: theme.fonts.regular }]}>Opens Google Maps / Apple Maps · walking directions</Text>
         </Animated.View>
       )}
 
@@ -425,7 +427,7 @@ const styles = StyleSheet.create({
   // Web fallback
   webFallback: {
     flex: 1, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: '#EFF6FF', gap: 12,
+    backgroundColor: '#E8F4EC', gap: 12,
   },
   webFallbackTitle: { fontSize: 20, fontWeight: '700', color: '#1F2937' },
   webFallbackSub:   { fontSize: 14, color: '#6B7280', textAlign: 'center', paddingHorizontal: 40 },
@@ -448,7 +450,7 @@ const styles = StyleSheet.create({
   dropdownItem:  { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
   dropdownName:  { fontSize: 14, fontWeight: '500', color: '#1F2937' },
   dropdownDist:  { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
-  dropdownAbbr:  { fontSize: 12, fontWeight: '700', color: '#3B82F6', marginLeft: 8 },
+  dropdownAbbr:  { fontSize: 12, fontWeight: '700', color: '#C75B12', marginLeft: 8 },
   separator:     { height: 1, backgroundColor: '#F3F4F6', marginHorizontal: 16 },
 
   // Locate button
@@ -471,15 +473,15 @@ const styles = StyleSheet.create({
   panelHandle:  { width: 40, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   panelHeader:  { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
   abbrBadge: {
-    backgroundColor: '#EFF6FF', borderRadius: 8, paddingHorizontal: 10,
+    backgroundColor: '#E8F4EC', borderRadius: 8, paddingHorizontal: 10,
     paddingVertical: 6, minWidth: 52, alignItems: 'center', justifyContent: 'center',
   },
-  abbrText:    { fontSize: 13, fontWeight: '800', color: '#3B82F6', letterSpacing: 0.5 },
+  abbrText:    { fontSize: 13, fontWeight: '800', color: '#C75B12', letterSpacing: 0.5 },
   panelName:   { fontSize: 15, fontWeight: '600', color: '#1F2937' },
   panelDist:   { fontSize: 13, color: '#6B7280', marginTop: 3 },
   navBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#3B82F6', borderRadius: 14, paddingVertical: 15,
+    backgroundColor: '#C75B12', borderRadius: 14, paddingVertical: 15,
   },
   navBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
   navHint:    { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 10 },
