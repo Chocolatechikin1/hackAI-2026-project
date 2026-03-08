@@ -1,0 +1,2 @@
+"build:web": "expo export --platform web",
+"start:web": "serve dist"
