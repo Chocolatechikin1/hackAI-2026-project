@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -15,6 +15,7 @@ import { MoreScreen } from './src/screens/MoreScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { HelpScreen } from './src/screens/HelpScreen';
+import { LeaveNowNotificationService } from './src/context/LeaveNowNotificationService';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -119,9 +120,20 @@ function AppNavigator() {
 }
 
 export default function App() {
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    try {
+      const Location = require('expo-location').default;
+      Location.requestForegroundPermissionsAsync().catch(() => {});
+    } catch {
+      // expo-location not available
+    }
+  }, []);
+
   return (
     <NavigationContainer>
       <StatusBar style="auto" />
+      <LeaveNowNotificationService />
       <AppNavigator />
     </NavigationContainer>
   );

@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Modal, TextInput, Alert, ActivityIndicator, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { nebulaApi } from '../api';
 import type { NebulaEvent } from '../api/nebula.types';
+import { STORAGE_KEYS } from '../context/storageKeys';
 
 const styles = StyleSheet.create({
   screenPad: { padding: 16 },
@@ -526,10 +528,39 @@ export const HomeScreen: React.FC = () => {
     addEventYear
   );
 
-  // Events (no static placeholders – clean schedule)
+  // Events (no static placeholders – clean schedule); persist to AsyncStorage for leave-now notifications
   const [events, setEvents] = useState<Event[]>([]);
-  
+  const eventsHydratedRef = useRef(false);
+
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  // Demo event as a dropdown option when adding a campus event (loaded when modal opens with type "event")
+  const [demoEventOption, setDemoEventOption] = useState<FlattenedCampusEvent | null>(null);
+
+  // Load events from storage on mount only
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(STORAGE_KEYS.SCHEDULE_EVENTS);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Event[];
+          if (Array.isArray(parsed)) {
+            setEvents(parsed);
+            eventsHydratedRef.current = true;
+            return;
+          }
+        }
+        setEvents([]);
+      } catch (_) {}
+      eventsHydratedRef.current = true;
+    })();
+  }, []);
+
+  // Persist events when they change (after initial hydration)
+  useEffect(() => {
+    if (!eventsHydratedRef.current) return;
+    AsyncStorage.setItem(STORAGE_KEYS.SCHEDULE_EVENTS, JSON.stringify(events)).catch(() => {});
+  }, [events]);
 
   // When opening add modal, set date to today
   useEffect(() => {
@@ -546,6 +577,33 @@ export const HomeScreen: React.FC = () => {
     const maxDay = getDaysInMonth(addEventMonth, addEventYear);
     if (addEventDay > maxDay) setAddEventDay(maxDay);
   }, [addEventMonth, addEventYear]);
+
+  // Load demo event as a dropdown option when Add Event type is "event"
+  useEffect(() => {
+    if (!showAddModal || addEventType !== 'event') {
+      setDemoEventOption(null);
+      return;
+    }
+    let cancelled = false;
+    import('../config/demoEvent')
+      .then((m) => m.getDemoEvent())
+      .then((demo) => {
+        if (cancelled) return;
+        const parts = demo.location.trim().split(/\s+/);
+        setDemoEventOption({
+          id: 'demo-9001',
+          summary: demo.title,
+          start_time: `${demo.startHour}:${String(demo.startMinute).padStart(2, '0')}`,
+          building: parts[0] ?? '',
+          room: parts.slice(1).join(' ') || '',
+          location: demo.location,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setDemoEventOption(null);
+      });
+    return () => { cancelled = true; };
+  }, [showAddModal, addEventType]);
 
   // Fetch campus events for selected date when Add Event type is "event"
   // API returns { date, buildings: [{ building, rooms: [{ room, events: [...] }] }] }
@@ -658,12 +716,10 @@ export const HomeScreen: React.FC = () => {
   
   const currentTime = getCurrentTime();
 
-  // Generate hours from 8 AM to 8 PM
-  const generateHours = () => {
+  // Generate hour labels for the daily grid (range is computed from events)
+  const generateHours = (start: number, end: number) => {
     const hours = [];
-    for (let h = 8; h <= 20; h++) {
-      hours.push(h);
-    }
+    for (let h = start; h < end; h++) hours.push(h);
     return hours;
   };
 
@@ -714,8 +770,21 @@ export const HomeScreen: React.FC = () => {
   }
 
   const HOUR_HEIGHT = Platform.OS === 'web' ? 44 : 52;
-  const calculateEventPosition = (startHour: number, startMinute: number) => {
-    const startMinutes = (startHour - 8) * 60 + startMinute;
+  const DEFAULT_RANGE_START = 8;
+  const DEFAULT_RANGE_END = 21; // show hours 8..20
+
+  // Dynamic range for the daily view: expand to include all events on the displayed day
+  const dayEventsForRange = events.filter((e) => e.date === dailyViewDate);
+  const rangeStart = dayEventsForRange.length > 0
+    ? Math.min(DEFAULT_RANGE_START, ...dayEventsForRange.map((e) => e.startHour))
+    : DEFAULT_RANGE_START;
+  const rangeEnd = dayEventsForRange.length > 0
+    ? Math.max(DEFAULT_RANGE_END, ...dayEventsForRange.map((e) => e.startHour + 1))
+    : DEFAULT_RANGE_END;
+  const rangeHourCount = rangeEnd - rangeStart;
+
+  const calculateEventPosition = (startHour: number, startMinute: number, rangeStartHour: number) => {
+    const startMinutes = (startHour - rangeStartHour) * 60 + startMinute;
     const top = startMinutes * (HOUR_HEIGHT / 60);
     const height = HOUR_HEIGHT;
     return { top, height };
@@ -728,9 +797,19 @@ export const HomeScreen: React.FC = () => {
     return { hour: 9, minute: 0 };
   }
 
-  const addNewEvent = () => {
+  const addNewEvent = async () => {
     const targetDate = addEventDate;
     if (addEventType === 'event' && selectedCampusEvent) {
+      if (selectedCampusEvent.id === 'demo-9001') {
+        const demoModule = await import('../config/demoEvent').catch(() => null);
+        const demo = demoModule?.getDemoEvent?.();
+        if (demo) {
+          setEvents((prev) => (prev.some((e) => e.id === 9001) ? prev : [...prev, demo]));
+          resetAddModal();
+          Alert.alert('Success', 'Event added to your schedule!');
+        }
+        return;
+      }
       const { hour, minute } = parseStartTime(selectedCampusEvent.start_time);
       const loc = selectedCampusEvent.location ?? `${selectedCampusEvent.building} ${selectedCampusEvent.room}`;
       const newEv: Event = {
@@ -824,13 +903,13 @@ export const HomeScreen: React.FC = () => {
                 <Text style={styles.todayButtonText}>Today</Text>
               </Pressable>
             </View>
-            <View style={styles.timeGrid}>
+            <View style={[styles.timeGrid, { minHeight: rangeHourCount * HOUR_HEIGHT }]}>
               {dailyViewDate === todayDate && (() => {
-                const minutesFrom8AM = (currentTime.hours - 8) * 60 + currentTime.minutes;
-                const maxTop = 13 * HOUR_HEIGHT;
-                const naturalTop = minutesFrom8AM * (HOUR_HEIGHT / 60);
-                const top = Math.min(naturalTop, maxTop);
-                const bubbleTop = Math.max(0, Math.min(top - 12, maxTop - 12));
+                const gridHeight = rangeHourCount * HOUR_HEIGHT;
+                const minutesFromRangeStart = (currentTime.hours - rangeStart) * 60 + currentTime.minutes;
+                const naturalTop = minutesFromRangeStart * (HOUR_HEIGHT / 60);
+                const top = Math.max(0, Math.min(naturalTop, gridHeight));
+                const bubbleTop = Math.max(0, Math.min(top - 12, gridHeight - 24));
                 return (
                   <>
                     <View style={[styles.currentTimeLine, { top }]} />
@@ -840,7 +919,7 @@ export const HomeScreen: React.FC = () => {
                   </>
                 );
               })()}
-              {generateHours().map((hour) => (
+              {generateHours(rangeStart, rangeEnd).map((hour) => (
                 <View key={hour} style={styles.hourLine}>
                   <Text style={styles.hourLabel}>
                     {hour > 12 ? hour - 12 : hour} {hour >= 12 ? 'PM' : 'AM'}
@@ -848,7 +927,7 @@ export const HomeScreen: React.FC = () => {
                 </View>
               ))}
               {events.filter((event) => event.date === dailyViewDate).map((event) => {
-                const position = calculateEventPosition(event.startHour, event.startMinute);
+                const position = calculateEventPosition(event.startHour, event.startMinute, rangeStart);
                 return (
                   <View
                     key={event.id}
@@ -928,8 +1007,8 @@ export const HomeScreen: React.FC = () => {
                     getEventsForDay(selectedDay).map((event) => (
                       <View key={event.id} style={styles.dayDetailEvent}>
                         <Text style={styles.dayDetailEventTitle}>{event.title}</Text>
-                        <Text style={styles.dayDetailEventTime}>{event.startHour}:{event.startMinute.toString().padStart(2, '0')} {event.startHour >= 12 ? 'PM' : 'AM'}</Text>
                         <Text style={styles.dayDetailEventLocation}>{event.location}</Text>
+                        <Text style={styles.dayDetailEventTime}>{event.startHour}:{event.startMinute.toString().padStart(2, '0')} {event.startHour >= 12 ? 'PM' : 'AM'}</Text>
                       </View>
                     ))
                   )}
@@ -1067,8 +1146,8 @@ export const HomeScreen: React.FC = () => {
                 <Pressable onPress={() => setAddEventType(null)} style={{ marginBottom: 8 }}>
                   <Text style={{ fontSize: 13, color: '#3B82F6' }}>← Back (change type)</Text>
                 </Pressable>
-                <Text style={{ marginBottom: 12, color: '#6B7280', fontSize: 14 }}>Events on this date (from Nebula)</Text>
-                {campusEventsLoading ? (
+                <Text style={{ marginBottom: 12, color: '#6B7280', fontSize: 14 }}>Events on this date</Text>
+                {campusEventsLoading && !demoEventOption ? (
                   <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 16 }} />
                 ) : (
                   <Pressable
@@ -1086,7 +1165,23 @@ export const HomeScreen: React.FC = () => {
                     <Pressable style={styles.dropdownModal} onPress={() => setDropdownOpen(null)}>
                       <Pressable style={styles.dropdownList} onPress={(e) => e.stopPropagation()}>
                         <ScrollView style={{ maxHeight: 300 }}>
-                          {campusEvents.length === 0 && !campusEventsLoading && (
+                          {demoEventOption && (
+                            <Pressable
+                              key={demoEventOption.id}
+                              style={styles.dropdownItem}
+                              onPress={() => {
+                                setSelectedCampusEvent(demoEventOption);
+                                setDropdownOpen(null);
+                              }}
+                            >
+                              <Text style={styles.dropdownItemText}>{demoEventOption.summary}</Text>
+                              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                                {demoEventOption.location ?? '—'}
+                                {demoEventOption.start_time ? ` · ${demoEventOption.start_time}` : ''}
+                              </Text>
+                            </Pressable>
+                          )}
+                          {campusEvents.length === 0 && !campusEventsLoading && !demoEventOption && (
                             <View style={styles.dropdownItem}>
                               <Text style={styles.dropdownItemText}>No events on this date</Text>
                             </View>
@@ -1102,7 +1197,8 @@ export const HomeScreen: React.FC = () => {
                             >
                               <Text style={styles.dropdownItemText}>{ev.summary}</Text>
                               <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-                                {ev.start_time ?? ''} {ev.building} {ev.room}
+                                {(ev.location ?? `${ev.building ?? ''} ${ev.room ?? ''}`.trim()) || '—'}
+                                {ev.start_time ? ` · ${ev.start_time}` : ''}
                               </Text>
                             </Pressable>
                           ))}

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Switch } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { STORAGE_KEYS } from '../context/storageKeys';
 
 const styles = StyleSheet.create({
   screenPad: { padding: 16 },
@@ -54,16 +55,27 @@ export const SettingsScreen: React.FC = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATIONS_ENABLED).then((v) => {
+      setNotificationsEnabled(v !== 'false');
+    }).catch(() => {});
+  }, []);
+
+  const onNotificationsChange = (value: boolean) => {
+    setNotificationsEnabled(value);
+    AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATIONS_ENABLED, value ? 'true' : 'false').catch(() => {});
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.screenPad} showsVerticalScrollIndicator={false}>
       <Text style={styles.sectionLabel}>Preferences</Text>
       <View style={styles.menuCard}>
         <View style={styles.menuItem}>
           <Ionicons name="notifications-outline" size={20} color="#4B5563" />
-          <Text style={styles.menuLabel}>Notifications</Text>
+          <Text style={styles.menuLabel}>Leave-now reminders</Text>
           <Switch
             value={notificationsEnabled}
-            onValueChange={setNotificationsEnabled}
+            onValueChange={onNotificationsChange}
           />
         </View>
         <View style={styles.menuItem}>
