@@ -594,10 +594,10 @@ export const HomeScreen: React.FC = () => {
       return;
     }
     let cancelled = false;
-    import('../config/demoEvent')
-      .then((m) => m.getDemoEvent())
+    import('../config/demoEventLoader')
+      .then((m) => m.getDemoEventOptional())
       .then((demo) => {
-        if (cancelled) return;
+        if (cancelled || !demo) return;
         const parts = demo.location.trim().split(/\s+/);
         setDemoEventOption({
           id: 'demo-9001',
@@ -830,8 +830,8 @@ export const HomeScreen: React.FC = () => {
 
     if (addEventType === 'event' && selectedCampusEvent) {
       if (selectedCampusEvent.id === 'demo-9001') {
-        const demoModule = await import('../config/demoEvent').catch(() => null);
-        const demo = demoModule?.getDemoEvent?.();
+        const demoModule = await import('../config/demoEventLoader').catch(() => null);
+        const demo = demoModule ? await demoModule.getDemoEventOptional() : null;
         if (demo) {
           setEvents((prev) => (prev.some((e) => e.id === 9001) ? prev : [...prev, demo]));
           resetAddModal();
