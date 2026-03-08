@@ -77,6 +77,37 @@ const TYPE_COLORS = {
 };
 const TYPE_LABEL = { major: 'Major', core: 'Core', elective: 'Elective' };
 
+const MOCK_GRADES = [
+  {
+    term: 'Fall 2025',
+    gpa: '3.80',
+    courses: [
+      { id: 'CS2336', code: 'CS 2336/2337', name: 'Computer Science II', grade: 'A' },
+      { id: 'CS2340', code: 'CS 2340', name: 'Computer Architecture', grade: 'B+' },
+      { id: 'MATH2418', code: 'MATH 2418', name: 'Linear Algebra', grade: 'A-' },
+    ]
+  },
+  {
+    term: 'Fall 2024',
+    gpa: '4.00',
+    courses: [
+      { id: 'CS1337', code: 'CS 1337', name: 'Computer Science I', grade: 'A' },
+      { id: 'MATH2417', code: 'MATH 2413/2417', name: 'Calculus I', grade: 'A' },
+      { id: 'ECS1100', code: 'ECS 1100', name: 'Intro to ENGR & CS', grade: 'A' },
+    ]
+  },
+  {
+    term: 'Spring 2024',
+    gpa: '3.90',
+    courses: [
+      { id: 'CS1436', code: 'CS 1436', name: 'Programming Fundamentals', grade: 'A' },
+      { id: 'PHYS2325', code: 'PHYS 2325/2125', name: 'Mechanics and Lab', grade: 'A-' },
+      { id: 'CORE1', code: 'CORE', name: 'Core Curriculum (1)', grade: 'A' },
+    ]
+  }
+];
+
+
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   // shared
@@ -149,6 +180,16 @@ const s = StyleSheet.create({
   legend:       { flexDirection: 'row', justifyContent: 'center', gap: 16, paddingTop: 4, paddingBottom: 32 },
   legendDot:    { width: 7, height: 7, borderRadius: 2, marginRight: 5 },
   legendText:   { fontSize: 9, color: '#6B7280', letterSpacing: 1, textTransform: 'uppercase' },
+
+  // ── Grades screen
+  gradeCard:       { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, padding: 16, marginBottom: 16 },
+  gradeTerm:       { fontSize: 14, fontWeight: '700', color: '#111827' },
+  gradeGpa:        { fontSize: 11, color: '#6B7280', marginTop: 2, marginBottom: 12 },
+  gradeRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  gradeCourseCode: { fontSize: 13, fontWeight: '600', color: '#111827' },
+  gradeCourseName: { fontSize: 11, color: '#6B7280', marginTop: 2, maxWidth: 220 },
+  gradeLetterWrap: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' },
+  gradeLetter:     { fontSize: 14, fontWeight: '700', color: '#2563EB' },
 });
 
 // ─── GRAD TRACKER SCREEN ─────────────────────────────────────────────────────
@@ -350,16 +391,64 @@ function GradTrackerScreen({ completed, setCompleted, onBack }: {
   );
 }
 
+// ─── GRADES SCREEN ───────────────────────────────────────────────────────────
+function GradesScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <SafeAreaView style={s.safeArea}>
+      <ScrollView style={s.root} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={s.gtHeader}>
+          <Pressable style={s.backBtn} onPress={onBack}>
+            <Ionicons name="chevron-back" size={16} color="#6B7280" />
+            <Text style={s.backText}>BACK</Text>
+          </Pressable>
+
+          <Text style={s.gtSchool}>Erik Jonsson School · UTD</Text>
+          <Text style={s.gtTitle}>My Grades</Text>
+          <Text style={s.gtYear}>Cumulative GPA: 3.89</Text>
+        </View>
+
+        {/* Semesters */}
+        <View style={{ padding: 16 }}>
+          {MOCK_GRADES.map((term, i) => (
+            <View key={i} style={s.gradeCard}>
+              <Text style={s.gradeTerm}>{term.term}</Text>
+              <Text style={s.gradeGpa}>Term GPA: {term.gpa}</Text>
+              {term.courses.map((c, ci) => (
+                <View key={ci} style={[s.gradeRow, ci === 0 && { borderTopWidth: 0 }]}>
+                  <View style={{ flex: 1, paddingRight: 10 }}>
+                    <Text style={s.gradeCourseCode}>{c.code}</Text>
+                    <Text style={s.gradeCourseName} numberOfLines={1}>{c.name}</Text>
+                  </View>
+                  <View style={s.gradeLetterWrap}>
+                    <Text style={s.gradeLetter}>{c.grade}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 // ─── HOME SCREEN ─────────────────────────────────────────────────────────────
 export const CoursesScreen: React.FC = () => {
-  const [page, setPage]           = useState<'home' | 'gradtracker'>('home');
-  const [completed, setCompleted] = useState<Set<string>>(new Set());
+  const [page, setPage]           = useState<'home' | 'gradtracker' | 'grades'>('home');
+  const [completed, setCompleted] = useState<Set<string>>(new Set([
+    'CS1436', 'PHYS2325', 'CORE1', // Spring 2024
+    'CS1337', 'MATH2417', 'ECS1100', // Fall 2024
+  ]));
 
   const earned = allCoursesFlat.filter(c => completed.has(c.id)).reduce((sum, c) => sum + c.credits, 0);
   const pct    = Math.round((earned / TOTAL_CREDITS) * 100);
 
   if (page === 'gradtracker') {
     return <GradTrackerScreen completed={completed} setCompleted={setCompleted} onBack={() => setPage('home')} />;
+  }
+  if (page === 'grades') {
+    return <GradesScreen onBack={() => setPage('home')} />;
   }
 
   return (
@@ -404,6 +493,22 @@ export const CoursesScreen: React.FC = () => {
             <View style={s.creditRow}>
               <Text style={s.creditEarned}>{earned} credits earned</Text>
               <Text style={s.creditLeft}>{TOTAL_CREDITS - earned} remaining</Text>
+            </View>
+          </Pressable>
+
+          {/* Grades card */}
+          <Pressable style={[s.card, { marginTop: 16 }]} onPress={() => setPage('grades')}>
+            <View style={s.cardTop}>
+              <View style={s.cardTitleRow}>
+                <View style={[s.cardIconWrap, { backgroundColor: '#F0FDF4' }]}>
+                  <Ionicons name="document-text-outline" size={18} color="#16A34A" />
+                </View>
+                <View>
+                  <Text style={s.cardTitle}>Academic Grades</Text>
+                  <Text style={s.cardSub}>View transcripts by term</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
             </View>
           </Pressable>
 
