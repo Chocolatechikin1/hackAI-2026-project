@@ -4,7 +4,7 @@
  * The app works either way - no demoEvent.ts required.
  */
 
-import type { DemoEventShape } from './demoEvent.template';
+import type { DemoEventShape } from './demoEvent.ts';
 
 /**
  * Returns the demo event, or null if unavailable.
