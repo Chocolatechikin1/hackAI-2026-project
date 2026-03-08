@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: hackai-utd-app
+    runtime: node
+    buildCommand: |
+      npm install
+      npx expo export --platform web
+    startCommand: |
+      npx serve dist
+    envVars:
+      - key: NODE_VERSION
+        value: 20
