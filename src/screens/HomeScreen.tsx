@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Modal, TextInput, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Modal, TextInput, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { nebulaApi } from '../api';
+import type { NebulaEvent } from '../api/nebula.types';
 
 const styles = StyleSheet.create({
   screenPad: { padding: 16 },
@@ -39,7 +41,35 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    minHeight: 500,
+    width: '100%',
+    ...(Platform.OS === 'web' ? { maxWidth: 400, alignSelf: 'center' as const } : {}),
+  },
+  dateNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  navArrow: {
+    padding: 8,
+    marginRight: 4,
+  },
+  dateNavLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    textAlign: 'center',
+  },
+  todayButton: {
+    backgroundColor: '#E5E7EB',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  todayButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
   },
   scheduleHeader: {
     flexDirection: 'row',
@@ -48,13 +78,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    justifyContent: 'center',
     flex: 1,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  viewToggle: {
+    marginRight: 8,
   },
   addButton: {
     backgroundColor: '#3B82F6',
@@ -71,32 +104,35 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
   },
+  viewButtonActive: {
+    backgroundColor: '#3B82F6',
+  },
   monthlyText: {
     color: '#6B7280',
     fontSize: 12,
     fontWeight: '500',
   },
   timeGrid: {
-    flex: 1,
     position: 'relative',
+    ...(Platform.OS === 'web' ? { minHeight: 13 * 44 } : { minHeight: 13 * 52 }),
   },
   hourLine: {
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
-    minHeight: 60,
+    ...(Platform.OS === 'web' ? { height: 44 } : { height: 52 }),
   },
   hourLabel: {
-    width: 60,
+    width: 48,
     color: '#6B7280',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
-    paddingTop: 8,
+    paddingTop: 6,
   },
   currentTimeLine: {
     position: 'absolute',
-    left: 60,
-    right: 0,
+    left: 48,
+    right: 10,
     height: 2,
     backgroundColor: '#EF4444',
     zIndex: 10,
@@ -105,25 +141,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     backgroundColor: '#EF4444',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     zIndex: 11,
   },
   currentTimeText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
   },
   eventBlock: {
     position: 'absolute',
-    left: 70,
-    right: 16,
+    left: 54,
+    right: 10,
     backgroundColor: '#DBEAFE',
     borderRadius: 6,
     padding: 8,
     borderLeftWidth: 3,
     borderLeftColor: '#3B82F6',
+    overflow: 'hidden',
   },
   eventTitle: {
     color: '#1E40AF',
@@ -134,6 +171,18 @@ const styles = StyleSheet.create({
   eventLocation: {
     color: '#1E40AF',
     fontSize: 10,
+  },
+  scheduleEmpty: {
+    position: 'absolute',
+    left: 54,
+    right: 10,
+    top: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scheduleEmptyText: {
+    color: '#9CA3AF',
+    fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
@@ -191,24 +240,17 @@ const styles = StyleSheet.create({
   saveText: {
     color: '#FFFFFF',
   },
-  dayDetailModal: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayDetailContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    width: '90%',
-    maxWidth: 400,
+  dayDetailBelow: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
   dayDetailTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   dayDetailDate: {
     fontSize: 14,
@@ -216,7 +258,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   dayDetailEvents: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   dayDetailEvent: {
     backgroundColor: '#F3F4F6',
@@ -251,33 +293,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   monthGrid: {
-    padding: 16,
-  },
-  monthHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  monthTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+    width: '100%',
   },
   weekDays: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   weekDay: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 12,
+    width: '14.28%',
+    textAlign: 'center' as const,
+    paddingVertical: Platform.OS === 'web' ? 4 : 6,
+    borderRadius: 4,
+    backgroundColor: '#F3F4F6',
+  },
+  weekDayText: {
+    fontSize: Platform.OS === 'web' ? 10 : 11,
     fontWeight: '500',
     color: '#6B7280',
-    paddingVertical: 8,
-  borderRadius: 6,
-  backgroundColor: '#F3F4F6',
+    textAlign: 'center',
   },
   weekDayCurrent: {
     backgroundColor: '#3B82F6',
@@ -286,25 +319,24 @@ const styles = StyleSheet.create({
   monthDays: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
   },
   monthDay: {
-    width: '14%',
+    width: '14.28%',
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
-    margin: '1%',
+    borderRadius: 4,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    position: 'relative',
   },
   monthDayToday: {
     backgroundColor: '#DBEAFE',
     borderColor: '#3B82F6',
   },
   monthDayText: {
-    fontSize: 14,
+    fontSize: Platform.OS === 'web' ? 12 : 14,
     fontWeight: '500',
     color: '#374151',
   },
@@ -313,13 +345,122 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   monthDayEvent: {
-    width: 4,
+    position: 'absolute',
+    bottom: 4,
+    left: '50%',
+    marginLeft: -6,
+    width: 12,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#3B82F6',
+  },
+  monthDayHasEvents: {
+    borderColor: '#93C5FD',
+    backgroundColor: '#EFF6FF',
+  },
+  dateDisplay: {
+    fontSize: 12,
+    color: '#6B7280',
     marginTop: 2,
   },
+  typeSelectorRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  typeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  typeButtonInactive: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  typeButtonDisabled: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F3F4F6',
+    opacity: 0.7,
+  },
+  typeButtonActive: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  typeButtonText: { fontSize: 14, fontWeight: '600' },
+  dateDropdownRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  dateDropdownThird: {
+    flex: 1,
+  },
+  dropdownTrigger: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropdownPlaceholder: { color: '#9CA3AF', fontSize: 14 },
+  dropdownValue: { color: '#1F2937', fontSize: 14 },
+  dropdownModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  dropdownList: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    maxHeight: 320,
+    paddingBottom: 24,
+  },
+  dropdownItem: {
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dropdownItemText: { fontSize: 14, color: '#1F2937' },
 });
+
+// --- Date helpers (real date) ---
+function getTodayDateString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function getTodayDisplay(): string {
+  const d = new Date();
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+}
+function getCurrentMonthYear(): { month: number; year: number; monthName: string } {
+  const d = new Date();
+  return {
+    month: d.getMonth(),
+    year: d.getFullYear(),
+    monthName: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+  };
+}
+function getDaysInMonth(month: number, year: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+// Flattened campus event for dropdown
+interface FlattenedCampusEvent {
+  id: string;
+  summary: string;
+  start_time?: string;
+  end_time?: string;
+  location?: string;
+  building: string;
+  room: string;
+}
 
 // Mock database for events
 interface Event {
@@ -331,28 +472,176 @@ interface Event {
   startMinute: number;
 }
 
+type AddEventType = 'event' | 'course' | null;
+
+// UTD class levels for course dropdown (Nebula API uses these strings)
+const CLASS_LEVELS = ['Undergraduate', 'Graduate'];
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+function getYears(): number[] {
+  const y = new Date().getFullYear();
+  return [y - 2, y - 1, y, y + 1];
+}
+
+function toDateString(day: number, month: number, year: number): string {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 export const HomeScreen: React.FC = () => {
+  const todayDate = getTodayDateString();
   const [viewMode, setViewMode] = useState<'today' | 'month'>('today');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newEventTitle, setNewEventTitle] = useState('');
-  const [newEventLocation, setNewEventLocation] = useState('');
-  const [newEventHour, setNewEventHour] = useState('9');
-  const [newEventMinute, setNewEventMinute] = useState('0');
-  const [newEventDay, setNewEventDay] = useState('1');
-  
-  // Mock database for events
-  const [events, setEvents] = useState<Event[]>([
-    { id: 1, title: 'CS 4341 - Machine Learning', location: 'ECS 2.314', date: '2024-03-07', startHour: 9, startMinute: 0 },
-    { id: 2, title: 'CS 4365 - Programming Languages', location: 'ECS 1.350', date: '2024-03-07', startHour: 11, startMinute: 0 },
-    { id: 3, title: 'MATH 3310 - Linear Algebra', location: 'FO 2.402', date: '2024-03-07', startHour: 14, startMinute: 0 },
-    { id: 4, title: 'PHYS 2325 - Mechanics', location: 'SCI 1.230', date: '2024-03-07', startHour: 16, startMinute: 0 },
-    { id: 5, title: 'Team Meeting', location: 'Student Union', date: '2024-03-10', startHour: 10, startMinute: 0 },
-    { id: 6, title: 'Study Group', location: 'Library', date: '2024-03-15', startHour: 15, startMinute: 0 },
-  ]);
+
+  // Daily view: which day we're viewing (default today)
+  const [dailyViewDate, setDailyViewDate] = useState(() => getTodayDateString());
+  // Monthly view: which month/year we're viewing (default current)
+  const [viewingMonth, setViewingMonth] = useState(() => new Date().getMonth());
+  const [viewingYear, setViewingYear] = useState(() => new Date().getFullYear());
+  const [addEventType, setAddEventType] = useState<AddEventType>(null);
+
+  // Campus event path
+  const [campusEvents, setCampusEvents] = useState<FlattenedCampusEvent[]>([]);
+  const [campusEventsLoading, setCampusEventsLoading] = useState(false);
+  const [selectedCampusEvent, setSelectedCampusEvent] = useState<FlattenedCampusEvent | null>(null);
+
+  // Course path
+  const [subjectPrefixes, setSubjectPrefixes] = useState<{ label: string; value: string }[]>([]);
+  const [subjectPrefixesLoading, setSubjectPrefixesLoading] = useState(false);
+  const [selectedSubjectPrefix, setSelectedSubjectPrefix] = useState<string | null>(null);
+  const [selectedClassLevel, setSelectedClassLevel] = useState<string | null>(null);
+  const [courses, setCourses] = useState<{ _id?: string; subject_prefix?: string; course_number?: string; title?: string }[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<{ _id?: string; subject_prefix?: string; course_number?: string; title?: string } | null>(null);
+
+  const [dropdownOpen, setDropdownOpen] = useState<'day' | 'month' | 'year' | 'campus' | 'subject' | 'class' | 'course' | null>(null);
+
+  // Add-event date (day/month/year); when modal opens, init from today
+  const [addEventDay, setAddEventDay] = useState(() => new Date().getDate());
+  const [addEventMonth, setAddEventMonth] = useState(() => new Date().getMonth());
+  const [addEventYear, setAddEventYear] = useState(() => new Date().getFullYear());
+  const addEventDate = toDateString(
+    Math.min(addEventDay, getDaysInMonth(addEventMonth, addEventYear)),
+    addEventMonth,
+    addEventYear
+  );
+
+  // Events (no static placeholders – clean schedule)
+  const [events, setEvents] = useState<Event[]>([]);
   
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [showDayDetail, setShowDayDetail] = useState(false);
-  
+
+  // When opening add modal, set date to today
+  useEffect(() => {
+    if (showAddModal) {
+      const d = new Date();
+      setAddEventDay(d.getDate());
+      setAddEventMonth(d.getMonth());
+      setAddEventYear(d.getFullYear());
+    }
+  }, [showAddModal]);
+
+  // Clamp day when month/year change so date stays valid
+  useEffect(() => {
+    const maxDay = getDaysInMonth(addEventMonth, addEventYear);
+    if (addEventDay > maxDay) setAddEventDay(maxDay);
+  }, [addEventMonth, addEventYear]);
+
+  // Fetch campus events for selected date when Add Event type is "event"
+  // API returns { date, buildings: [{ building, rooms: [{ room, events: [...] }] }] }
+  useEffect(() => {
+    if (!showAddModal || addEventType !== 'event') return;
+    let cancelled = false;
+    setCampusEventsLoading(true);
+    setCampusEvents([]);
+    setSelectedCampusEvent(null);
+    nebulaApi.cometCalendarEvents(addEventDate)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const flat: FlattenedCampusEvent[] = [];
+        const buildings = (data as { buildings?: Array<{ building?: string; rooms?: Array<{ room?: string; events?: NebulaEvent[] }> }> })?.buildings;
+        if (Array.isArray(buildings)) {
+          for (const bldg of buildings) {
+            const buildingName = bldg.building ?? '';
+            const roomsList = bldg.rooms ?? [];
+            for (const r of roomsList) {
+              const roomName = r.room ?? '';
+              const evts = r.events ?? [];
+              evts.forEach((e: NebulaEvent, i: number) => {
+                flat.push({
+                  id: `${buildingName}-${roomName}-${i}-${e._id ?? ''}`,
+                  summary: e.summary ?? 'Untitled',
+                  start_time: e.start_time,
+                  end_time: e.end_time,
+                  location: e.location,
+                  building: buildingName,
+                  room: roomName,
+                });
+              });
+            }
+          }
+        }
+        setCampusEvents(flat);
+      })
+      .catch(() => {
+        if (!cancelled) setCampusEvents([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCampusEventsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [showAddModal, addEventType, addEventDate]);
+
+  // Fetch subject prefixes (for course path) when Add Event type is "course"
+  useEffect(() => {
+    if (!showAddModal || addEventType !== 'course') return;
+    let cancelled = false;
+    setSubjectPrefixesLoading(true);
+    nebulaApi.autocompleteDAG()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const list = Array.isArray(data)
+          ? data
+            .map((a: { subject_prefix?: string }) => a.subject_prefix)
+            .filter((s): s is string => typeof s === 'string' && s.length > 0)
+            .sort()
+            .map((s) => ({ label: s, value: s }))
+          : [];
+        setSubjectPrefixes(list);
+      })
+      .catch(() => {
+        if (!cancelled) setSubjectPrefixes([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSubjectPrefixesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [showAddModal, addEventType]);
+
+  // Fetch courses when subject + class level selected (course path)
+  useEffect(() => {
+    if (addEventType !== 'course' || !selectedSubjectPrefix || !selectedClassLevel) {
+      setCourses([]);
+      setSelectedCourse(null);
+      return;
+    }
+    let cancelled = false;
+    setCoursesLoading(true);
+    nebulaApi.courseSearch({ subject_prefix: selectedSubjectPrefix, class_level: selectedClassLevel })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setCourses(Array.isArray(data) ? data : []);
+        setSelectedCourse(null);
+      })
+      .catch(() => {
+        if (!cancelled) setCourses([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCoursesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [addEventType, selectedSubjectPrefix, selectedClassLevel]);
+
   // Get current time for positioning
   const getCurrentTime = () => {
     const now = new Date();
@@ -378,55 +667,116 @@ export const HomeScreen: React.FC = () => {
     return hours;
   };
 
-  // Generate month days
+  // Month view: use viewing month/year
+  const daysInMonth = getDaysInMonth(viewingMonth, viewingYear);
+  const viewingMonthName = new Date(viewingYear, viewingMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   const generateMonthDays = () => {
     const days = [];
-    const daysInMonth = 31; // March 2024
-    for (let d = 1; d <= daysInMonth; d++) {
-      days.push(d);
-    }
+    for (let d = 1; d <= daysInMonth; d++) days.push(d);
     return days;
   };
-
-  // Get events for specific day
-  const getEventsForDay = (day: number) => {
-    return events.filter(event => {
-      const eventDay = parseInt(event.date.split('-')[2]);
-      return eventDay === day;
-    });
+  const isToday = (day: number) => {
+    const d = new Date();
+    return d.getDate() === day && d.getMonth() === viewingMonth && d.getFullYear() === viewingYear;
   };
 
+  // Get events for specific day (in viewed month when in month view)
+  const getEventsForDay = (day: number) => {
+    const targetDate = `${viewingYear}-${String(viewingMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return events.filter((event) => event.date === targetDate);
+  };
+
+  function goToPresent() {
+    const d = new Date();
+    setDailyViewDate(getTodayDateString());
+    setViewingMonth(d.getMonth());
+    setViewingYear(d.getFullYear());
+  }
+
+  function changeDailyViewDay(delta: number) {
+    const d = new Date(dailyViewDate + 'T12:00:00');
+    d.setDate(d.getDate() + delta);
+    setDailyViewDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+  }
+
+  function changeMonth(delta: number) {
+    let m = viewingMonth + delta;
+    let y = viewingYear;
+    if (m > 11) { m = 0; y += 1; }
+    if (m < 0) { m = 11; y -= 1; }
+    setViewingMonth(m);
+    setViewingYear(y);
+  }
+
+  function dailyViewDisplayDate(): string {
+    const d = new Date(dailyViewDate + 'T12:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  const HOUR_HEIGHT = Platform.OS === 'web' ? 44 : 52;
   const calculateEventPosition = (startHour: number, startMinute: number) => {
     const startMinutes = (startHour - 8) * 60 + startMinute;
-    const top = startMinutes * (60 / 60); // 60px per hour
-    const height = 75; // 1 hour 15 minutes = 75px
+    const top = startMinutes * (HOUR_HEIGHT / 60);
+    const height = HOUR_HEIGHT;
     return { top, height };
   };
 
+  function parseStartTime(start_time?: string): { hour: number; minute: number } {
+    if (!start_time) return { hour: 9, minute: 0 };
+    const match = start_time.match(/(\d{1,2}):(\d{2})/);
+    if (match) return { hour: parseInt(match[1], 10), minute: parseInt(match[2], 10) };
+    return { hour: 9, minute: 0 };
+  }
+
   const addNewEvent = () => {
-    if (newEventTitle.trim() && newEventLocation.trim()) {
-      const today = new Date().toISOString().split('T')[0];
-      const newClass: Event = {
+    const targetDate = addEventDate;
+    if (addEventType === 'event' && selectedCampusEvent) {
+      const { hour, minute } = parseStartTime(selectedCampusEvent.start_time);
+      const loc = selectedCampusEvent.location ?? `${selectedCampusEvent.building} ${selectedCampusEvent.room}`;
+      const newEv: Event = {
         id: events.length + 1,
-        title: newEventTitle,
-        location: newEventLocation,
-        date: today,
-        startHour: parseInt(newEventHour),
-        startMinute: parseInt(newEventMinute),
+        title: selectedCampusEvent.summary,
+        location: loc,
+        date: targetDate,
+        startHour: hour,
+        startMinute: minute,
       };
-      setEvents([...events, newClass]);
-      
-      // Reset form
-      setNewEventTitle('');
-      setNewEventLocation('');
-      setNewEventHour('9');
-      setNewEventMinute('0');
-      setNewEventDay('1');
-      setShowAddModal(false);
-      
-      Alert.alert('Success', 'Event added successfully!');
+      setEvents([...events, newEv]);
+      resetAddModal();
+      Alert.alert('Success', 'Campus event added to your schedule!');
+      return;
     }
+    if (addEventType === 'course' && selectedCourse) {
+      const title = [selectedCourse.subject_prefix, selectedCourse.course_number].filter(Boolean).join(' ') + (selectedCourse.title ? ` - ${selectedCourse.title}` : '');
+      const newEv: Event = {
+        id: events.length + 1,
+        title: title.trim(),
+        location: 'TBD',
+        date: targetDate,
+        startHour: 9,
+        startMinute: 0,
+      };
+      setEvents([...events, newEv]);
+      resetAddModal();
+      Alert.alert('Success', 'Course added to your schedule!');
+      return;
+    }
+    Alert.alert('Select an option', addEventType === 'event' ? 'Please select a campus event.' : 'Please select subject, class level, and course.');
   };
+
+  function resetAddModal() {
+    setShowAddModal(false);
+    setAddEventType(null);
+    setSelectedCampusEvent(null);
+    setSelectedSubjectPrefix(null);
+    setSelectedClassLevel(null);
+    setSelectedCourse(null);
+    setDropdownOpen(null);
+    const d = new Date();
+    setAddEventDay(d.getDate());
+    setAddEventMonth(d.getMonth());
+    setAddEventYear(d.getFullYear());
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.screenPad} showsVerticalScrollIndicator={false}>
@@ -434,103 +784,128 @@ export const HomeScreen: React.FC = () => {
       <View style={styles.scheduleCard}>
         <View style={styles.scheduleHeader}>
           <View style={styles.headerLeft}>
-            <Text style={styles.cardLabel}>Today's Schedule</Text>
+            <Text style={styles.cardLabel}>
+              {viewMode === 'today' ? 'Daily Schedule' : viewingMonthName}
+            </Text>
+            <Text style={styles.dateDisplay}>
+              {viewMode === 'today' ? dailyViewDisplayDate() : 'Tap a day for details'}
+            </Text>
           </View>
           <View style={styles.headerRight}>
-            <Pressable 
-              style={styles.addButton}
-              onPress={() => setShowAddModal(true)}
+            <Pressable
+              style={[styles.monthlyButton, styles.viewToggle, viewMode === 'today' && styles.viewButtonActive]}
+              onPress={() => setViewMode('today')}
             >
-              <Ionicons name="add" size={24} color="#FFFFFF" />
+              <Text style={[styles.monthlyText, viewMode === 'today' && { color: '#FFF' }]}>Daily</Text>
             </Pressable>
-            <Pressable 
-              style={styles.monthlyButton}
+            <Pressable
+              style={[styles.monthlyButton, styles.viewToggle, viewMode === 'month' && styles.viewButtonActive]}
               onPress={() => setViewMode('month')}
             >
-              <Text style={styles.monthlyText}>Monthly View</Text>
+              <Text style={[styles.monthlyText, viewMode === 'month' && { color: '#FFF' }]}>Monthly</Text>
+            </Pressable>
+            <Pressable style={styles.addButton} onPress={() => setShowAddModal(true)}>
+              <Ionicons name="add" size={24} color="#FFFFFF" />
             </Pressable>
           </View>
         </View>
         
         {viewMode === 'today' ? (
-          <View style={styles.timeGrid}>
-            {/* Current time indicator */}
-            <View 
-              style={[
-                styles.currentTimeLine, 
-                { top: ((currentTime.hours - 8) * 60 + currentTime.minutes) * (60 / 60) }
-              ]} 
-            />
-            <View 
-              style={[
-                styles.currentTimeBubble,
-                { top: ((currentTime.hours - 8) * 60 + currentTime.minutes) * (60 / 60) - 12 }
-              ]}
-            >
-              <Text style={styles.currentTimeText}>{currentTime.displayTime}</Text>
-            </View>
-            
-            {/* Hour lines */}
-            {generateHours().map((hour) => (
-              <View key={hour} style={styles.hourLine}>
-                <Text style={styles.hourLabel}>
-                  {hour > 12 ? hour - 12 : hour} {hour >= 12 ? 'PM' : 'AM'}
-                </Text>
-              </View>
-            ))}
-            
-            {/* Today's events */}
-            {events.filter(event => event.date === new Date().toISOString().split('T')[0]).map((event) => {
-              const position = calculateEventPosition(event.startHour, event.startMinute);
-              return (
-                <View
-                  key={event.id}
-                  style={[
-                    styles.eventBlock,
-                    { top: position.top, height: position.height }
-                  ]}
-                >
-                  <Text style={styles.eventTitle}>{event.title}</Text>
-                  <Text style={styles.eventLocation}>{event.location}</Text>
-                </View>
-              );
-            })}
-          </View>
-        ) : (
-          <View style={styles.monthGrid}>
-            <View style={styles.monthHeader}>
-              <Text style={styles.monthTitle}>March 2024</Text>
-              <Pressable 
-                style={styles.addButton}
-                onPress={() => setShowAddModal(true)}
-              >
-                <Ionicons name="add" size={24} color="#FFFFFF" />
+          <>
+            <View style={styles.dateNavRow}>
+              <Pressable style={styles.navArrow} onPress={() => changeDailyViewDay(-1)}>
+                <Ionicons name="chevron-back" size={24} color="#374151" />
+              </Pressable>
+              <Text style={styles.dateNavLabel} numberOfLines={1}>{dailyViewDisplayDate()}</Text>
+              <Pressable style={styles.navArrow} onPress={() => changeDailyViewDay(1)}>
+                <Ionicons name="chevron-forward" size={24} color="#374151" />
+              </Pressable>
+              <Pressable style={styles.todayButton} onPress={goToPresent}>
+                <Text style={styles.todayButtonText}>Today</Text>
               </Pressable>
             </View>
-            
-            {/* Week days header */}
-            <View style={styles.weekDays}>
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
-                <View key={day} style={[styles.weekDay, index === new Date().getDay() && styles.weekDayCurrent]}>
-                  <Text style={[styles.weekDay, index === new Date().getDay() && styles.weekDayCurrent]}>
-                    {day}
+            <View style={styles.timeGrid}>
+              {dailyViewDate === todayDate && (() => {
+                const minutesFrom8AM = (currentTime.hours - 8) * 60 + currentTime.minutes;
+                const maxTop = 13 * HOUR_HEIGHT;
+                const naturalTop = minutesFrom8AM * (HOUR_HEIGHT / 60);
+                const top = Math.min(naturalTop, maxTop);
+                const bubbleTop = Math.max(0, Math.min(top - 12, maxTop - 12));
+                return (
+                  <>
+                    <View style={[styles.currentTimeLine, { top }]} />
+                    <View style={[styles.currentTimeBubble, { top: bubbleTop }]}>
+                      <Text style={styles.currentTimeText}>{currentTime.displayTime}</Text>
+                    </View>
+                  </>
+                );
+              })()}
+              {generateHours().map((hour) => (
+                <View key={hour} style={styles.hourLine}>
+                  <Text style={styles.hourLabel}>
+                    {hour > 12 ? hour - 12 : hour} {hour >= 12 ? 'PM' : 'AM'}
                   </Text>
                 </View>
               ))}
+              {events.filter((event) => event.date === dailyViewDate).map((event) => {
+                const position = calculateEventPosition(event.startHour, event.startMinute);
+                return (
+                  <View
+                    key={event.id}
+                    style={[styles.eventBlock, { top: position.top, height: position.height }]}
+                  >
+                    <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+                    <Text style={styles.eventLocation} numberOfLines={1}>{event.location}</Text>
+                  </View>
+                );
+              })}
+              {events.filter((e) => e.date === dailyViewDate).length === 0 && (
+                <View style={styles.scheduleEmpty}>
+                  <Text style={styles.scheduleEmptyText}>No events this day. Tap + to add one.</Text>
+                </View>
+              )}
             </View>
-            
-            {/* Month days grid */}
-            <View style={styles.monthDays}>
+          </>
+        ) : (
+          <>
+            <View style={styles.dateNavRow}>
+              <Pressable style={styles.navArrow} onPress={() => changeMonth(-1)}>
+                <Ionicons name="chevron-back" size={24} color="#374151" />
+              </Pressable>
+              <Text style={styles.dateNavLabel} numberOfLines={1}>{viewingMonthName}</Text>
+              <Pressable style={styles.navArrow} onPress={() => changeMonth(1)}>
+                <Ionicons name="chevron-forward" size={24} color="#374151" />
+              </Pressable>
+              <Pressable style={styles.todayButton} onPress={goToPresent}>
+                <Text style={styles.todayButtonText}>Today</Text>
+              </Pressable>
+            </View>
+            <View style={styles.monthGrid}>
+              <View style={styles.weekDays}>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, index) => (
+                  <View key={d} style={[styles.weekDay, index === new Date().getDay() && styles.weekDayCurrent]}>
+                    <Text style={[styles.weekDayText, index === new Date().getDay() && styles.weekDayCurrent]}>
+                      {d}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              <View style={styles.monthDays}>
               {generateMonthDays().map((day) => {
                 const dayEvents = getEventsForDay(day);
-                const isToday = day === new Date().getDate();
+                const todayFlag = isToday(day);
                 
                 return (
-                  <Pressable key={day} style={[styles.monthDay, isToday && styles.monthDayToday]} onPress={() => {
-                    setSelectedDay(day);
-                    setShowDayDetail(true);
-                  }}>
-                    <Text style={[styles.monthDayText, isToday && styles.monthDayTodayText]}>
+                  <Pressable
+                    key={day}
+                    style={[
+                      styles.monthDay,
+                      todayFlag && styles.monthDayToday,
+                      dayEvents.length > 0 && styles.monthDayHasEvents,
+                    ]}
+                    onPress={() => setSelectedDay(selectedDay === day ? null : day)}
+                  >
+                    <Text style={[styles.monthDayText, todayFlag && styles.monthDayTodayText]}>
                       {day}
                     </Text>
                     {dayEvents.length > 0 && (
@@ -539,116 +914,337 @@ export const HomeScreen: React.FC = () => {
                   </Pressable>
                 );
               })}
+              </View>
             </View>
-          </View>
+            {selectedDay != null && (
+              <View style={styles.dayDetailBelow}>
+                <Text style={styles.dayDetailTitle}>
+                  {new Date(viewingYear, viewingMonth, selectedDay).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </Text>
+                <View style={styles.dayDetailEvents}>
+                  {getEventsForDay(selectedDay).length === 0 ? (
+                    <Text style={styles.scheduleEmptyText}>No events this day.</Text>
+                  ) : (
+                    getEventsForDay(selectedDay).map((event) => (
+                      <View key={event.id} style={styles.dayDetailEvent}>
+                        <Text style={styles.dayDetailEventTitle}>{event.title}</Text>
+                        <Text style={styles.dayDetailEventTime}>{event.startHour}:{event.startMinute.toString().padStart(2, '0')} {event.startHour >= 12 ? 'PM' : 'AM'}</Text>
+                        <Text style={styles.dayDetailEventLocation}>{event.location}</Text>
+                      </View>
+                    ))
+                  )}
+                </View>
+                <Pressable style={styles.todayButton} onPress={() => setSelectedDay(null)}>
+                  <Text style={styles.todayButtonText}>Clear selection</Text>
+                </Pressable>
+              </View>
+            )}
+          </>
         )}
       </View>
-
-      {/* Day Detail Modal */}
-      <Modal
-        visible={showDayDetail}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => {
-          setShowDayDetail(false);
-          setSelectedDay(null);
-        }}
-      >
-        <View style={styles.dayDetailModal}>
-          <View style={styles.dayDetailContent}>
-            <Text style={styles.dayDetailTitle}>Day {selectedDay}</Text>
-            <Text style={styles.dayDetailDate}>March 2024</Text>
-            
-            <View style={styles.dayDetailEvents}>
-              {getEventsForDay(selectedDay || 1).map((event, index) => (
-                <View key={index} style={styles.dayDetailEvent}>
-                  <Text style={styles.dayDetailEventTitle}>{event.title}</Text>
-                  <Text style={styles.dayDetailEventTime}>{event.startHour}:{event.startMinute.toString().padStart(2, '0')} {event.startHour >= 12 ? 'PM' : 'AM'}</Text>
-                  <Text style={styles.dayDetailEventLocation}>{event.location}</Text>
-                </View>
-              ))}
-            </View>
-            
-            <View style={styles.closeButton}>
-              <Pressable onPress={() => {
-                setShowDayDetail(false);
-                setSelectedDay(null);
-              }}>
-                <Text style={styles.closeButtonText}>Close</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* Add Event Modal */}
       <Modal
         visible={showAddModal}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setShowAddModal(false)}
+        onRequestClose={resetAddModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Add New Event</Text>
-            
-            <TextInput
-              style={styles.input}
-              placeholder="Event Title"
-              value={newEventTitle}
-              onChangeText={setNewEventTitle}
-            />
-            
-            <TextInput
-              style={styles.input}
-              placeholder="Location"
-              value={newEventLocation}
-              onChangeText={setNewEventLocation}
-            />
-            
-            <View style={{ flexDirection: 'row' }}>
-              <TextInput
-                style={[styles.input, { flex: 1, marginRight: 8 }]}
-                placeholder="Hour"
-                value={newEventHour}
-                onChangeText={setNewEventHour}
-                keyboardType="numeric"
-                maxLength={2}
-              />
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Minute"
-                value={newEventMinute}
-                onChangeText={setNewEventMinute}
-                keyboardType="numeric"
-                maxLength={2}
-              />
+
+            {/* Day / Month / Year dropdowns – must be set before choosing type */}
+            <Text style={{ marginBottom: 8, color: '#6B7280', fontSize: 14 }}>Date</Text>
+            <View style={styles.dateDropdownRow}>
+              <View style={styles.dateDropdownThird}>
+                <Pressable
+                  style={styles.dropdownTrigger}
+                  onPress={() => setDropdownOpen((o) => (o === 'day' ? null : 'day'))}
+                >
+                  <Text style={styles.dropdownValue}>{addEventDay}</Text>
+                  <Ionicons name="chevron-down" size={18} color="#6B7280" />
+                </Pressable>
+              </View>
+              <View style={styles.dateDropdownThird}>
+                <Pressable
+                  style={styles.dropdownTrigger}
+                  onPress={() => setDropdownOpen((o) => (o === 'month' ? null : 'month'))}
+                >
+                  <Text style={styles.dropdownValue} numberOfLines={1}>{MONTH_NAMES[addEventMonth]}</Text>
+                  <Ionicons name="chevron-down" size={18} color="#6B7280" />
+                </Pressable>
+              </View>
+              <View style={styles.dateDropdownThird}>
+                <Pressable
+                  style={styles.dropdownTrigger}
+                  onPress={() => setDropdownOpen((o) => (o === 'year' ? null : 'year'))}
+                >
+                  <Text style={styles.dropdownValue}>{addEventYear}</Text>
+                  <Ionicons name="chevron-down" size={18} color="#6B7280" />
+                </Pressable>
+              </View>
             </View>
-            
-            {viewMode === 'month' && (
-              <TextInput
-                style={styles.input}
-                placeholder="Day (1-31)"
-                value={newEventDay}
-                onChangeText={setNewEventDay}
-                keyboardType="numeric"
-                maxLength={2}
-              />
+
+            {/* Day dropdown modal */}
+            {dropdownOpen === 'day' && (() => {
+              const daysInSelectedMonth = getDaysInMonth(addEventMonth, addEventYear);
+              return (
+                <Modal visible transparent animationType="fade">
+                  <Pressable style={styles.dropdownModal} onPress={() => setDropdownOpen(null)}>
+                    <Pressable style={styles.dropdownList} onPress={(e) => e.stopPropagation()}>
+                      <ScrollView style={{ maxHeight: 280 }}>
+                        {Array.from({ length: daysInSelectedMonth }, (_, i) => i + 1).map((d) => (
+                          <Pressable key={d} style={styles.dropdownItem} onPress={() => { setAddEventDay(d); setDropdownOpen(null); }}>
+                            <Text style={styles.dropdownItemText}>{d}</Text>
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                    </Pressable>
+                  </Pressable>
+                </Modal>
+              );
+            })()}
+            {dropdownOpen === 'month' && (
+              <Modal visible transparent animationType="fade">
+                <Pressable style={styles.dropdownModal} onPress={() => setDropdownOpen(null)}>
+                  <Pressable style={styles.dropdownList} onPress={(e) => e.stopPropagation()}>
+                    <ScrollView style={{ maxHeight: 280 }}>
+                      {MONTH_NAMES.map((name, i) => (
+                        <Pressable key={name} style={styles.dropdownItem} onPress={() => { setAddEventMonth(i); setDropdownOpen(null); }}>
+                          <Text style={styles.dropdownItemText}>{name}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </Pressable>
+                </Pressable>
+              </Modal>
             )}
-            
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Pressable
-                style={[styles.modalButton, { backgroundColor: '#F3F4F6', marginRight: 8 }]}
-                onPress={() => setShowAddModal(false)}
-              >
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#6B7280' }}>Cancel</Text>
+            {dropdownOpen === 'year' && (
+              <Modal visible transparent animationType="fade">
+                <Pressable style={styles.dropdownModal} onPress={() => setDropdownOpen(null)}>
+                  <Pressable style={styles.dropdownList} onPress={(e) => e.stopPropagation()}>
+                    <ScrollView style={{ maxHeight: 280 }}>
+                      {getYears().map((y) => (
+                        <Pressable key={y} style={styles.dropdownItem} onPress={() => { setAddEventYear(y); setDropdownOpen(null); }}>
+                          <Text style={styles.dropdownItemText}>{y}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </Pressable>
+                </Pressable>
+              </Modal>
+            )}
+
+            {(() => {
+              const daysInSelected = getDaysInMonth(addEventMonth, addEventYear);
+              const dateReady = addEventDay >= 1 && addEventDay <= daysInSelected;
+              return addEventType === null ? (
+                <>
+                  <Text style={{ marginBottom: 12, color: '#6B7280', fontSize: 14 }}>What would you like to add?</Text>
+                  <View style={styles.typeSelectorRow}>
+                    <Pressable
+                      style={[styles.typeButton, dateReady ? styles.typeButtonInactive : styles.typeButtonDisabled]}
+                      onPress={() => dateReady && setAddEventType('event')}
+                      disabled={!dateReady}
+                    >
+                      <Text style={[styles.typeButtonText, { color: dateReady ? '#374151' : '#9CA3AF' }]}>Campus Event</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.typeButton, dateReady ? styles.typeButtonInactive : styles.typeButtonDisabled]}
+                      onPress={() => dateReady && setAddEventType('course')}
+                      disabled={!dateReady}
+                    >
+                      <Text style={[styles.typeButtonText, { color: dateReady ? '#374151' : '#9CA3AF' }]}>Course</Text>
+                    </Pressable>
+                  </View>
+                </>
+              ) : null;
+            })()}
+
+            {addEventType === 'event' ? (
+              <>
+                <Pressable onPress={() => setAddEventType(null)} style={{ marginBottom: 8 }}>
+                  <Text style={{ fontSize: 13, color: '#3B82F6' }}>← Back (change type)</Text>
+                </Pressable>
+                <Text style={{ marginBottom: 12, color: '#6B7280', fontSize: 14 }}>Events on this date (from Nebula)</Text>
+                {campusEventsLoading ? (
+                  <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 16 }} />
+                ) : (
+                  <Pressable
+                    style={styles.dropdownTrigger}
+                    onPress={() => setDropdownOpen((o) => (o === 'campus' ? null : 'campus'))}
+                  >
+                    <Text style={selectedCampusEvent ? styles.dropdownValue : styles.dropdownPlaceholder}>
+                      {selectedCampusEvent ? `${selectedCampusEvent.summary}${selectedCampusEvent.start_time ? ` (${selectedCampusEvent.start_time})` : ''}` : 'Select an event'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                  </Pressable>
+                )}
+                {dropdownOpen === 'campus' && (
+                  <Modal visible transparent animationType="fade">
+                    <Pressable style={styles.dropdownModal} onPress={() => setDropdownOpen(null)}>
+                      <Pressable style={styles.dropdownList} onPress={(e) => e.stopPropagation()}>
+                        <ScrollView style={{ maxHeight: 300 }}>
+                          {campusEvents.length === 0 && !campusEventsLoading && (
+                            <View style={styles.dropdownItem}>
+                              <Text style={styles.dropdownItemText}>No events on this date</Text>
+                            </View>
+                          )}
+                          {campusEvents.map((ev) => (
+                            <Pressable
+                              key={ev.id}
+                              style={styles.dropdownItem}
+                              onPress={() => {
+                                setSelectedCampusEvent(ev);
+                                setDropdownOpen(null);
+                              }}
+                            >
+                              <Text style={styles.dropdownItemText}>{ev.summary}</Text>
+                              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                                {ev.start_time ?? ''} {ev.building} {ev.room}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </ScrollView>
+                      </Pressable>
+                    </Pressable>
+                  </Modal>
+                )}
+              </>
+            ) : (
+              <>
+                <Pressable onPress={() => setAddEventType(null)} style={{ marginBottom: 8 }}>
+                  <Text style={{ fontSize: 13, color: '#3B82F6' }}>← Back (change type)</Text>
+                </Pressable>
+                <Text style={{ marginBottom: 12, color: '#6B7280', fontSize: 14 }}>Narrow down by subject and level, then pick a course</Text>
+                {subjectPrefixesLoading ? (
+                  <View style={{ marginVertical: 16, alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color="#3B82F6" />
+                    <Text style={{ marginTop: 8, fontSize: 13, color: '#6B7280' }}>Loading options…</Text>
+                  </View>
+                ) : (
+                  <>
+                    <Pressable
+                      style={styles.dropdownTrigger}
+                      onPress={() => setDropdownOpen((o) => (o === 'subject' ? null : 'subject'))}
+                    >
+                      <Text style={selectedSubjectPrefix ? styles.dropdownValue : styles.dropdownPlaceholder}>
+                        {selectedSubjectPrefix ?? 'Subject prefix'}
+                      </Text>
+                      <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                    </Pressable>
+                    <Pressable
+                      style={styles.dropdownTrigger}
+                      onPress={() => setDropdownOpen((o) => (o === 'class' ? null : 'class'))}
+                    >
+                      <Text style={selectedClassLevel ? styles.dropdownValue : styles.dropdownPlaceholder}>
+                        {selectedClassLevel ?? 'Class level'}
+                      </Text>
+                      <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                    </Pressable>
+                  </>
+                )}
+                {!subjectPrefixesLoading && selectedSubjectPrefix && selectedClassLevel && (
+                  coursesLoading ? (
+                    <View style={{ marginVertical: 16, alignItems: 'center' }}>
+                      <ActivityIndicator size="small" color="#3B82F6" />
+                      <Text style={{ marginTop: 8, fontSize: 13, color: '#6B7280' }}>Loading courses…</Text>
+                    </View>
+                  ) : courses.length === 0 ? (
+                    <Text style={{ marginVertical: 12, fontSize: 14, color: '#6B7280' }}>No courses found for this subject and level.</Text>
+                  ) : (
+                    <Pressable
+                      style={styles.dropdownTrigger}
+                      onPress={() => setDropdownOpen((o) => (o === 'course' ? null : 'course'))}
+                    >
+                      <Text style={selectedCourse ? styles.dropdownValue : styles.dropdownPlaceholder}>
+                        {selectedCourse ? `${selectedCourse.subject_prefix} ${selectedCourse.course_number} – ${selectedCourse.title ?? ''}` : 'Select course'}
+                      </Text>
+                      <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                    </Pressable>
+                  )
+                )}
+                {dropdownOpen === 'subject' && (
+                  <Modal visible transparent animationType="fade">
+                    <Pressable style={styles.dropdownModal} onPress={() => setDropdownOpen(null)}>
+                      <Pressable style={styles.dropdownList} onPress={(e) => e.stopPropagation()}>
+                        <ScrollView style={{ maxHeight: 300 }}>
+                          {subjectPrefixes.map((p) => (
+                            <Pressable
+                              key={p.value}
+                              style={styles.dropdownItem}
+                              onPress={() => {
+                                setSelectedSubjectPrefix(p.value);
+                                setDropdownOpen(null);
+                              }}
+                            >
+                              <Text style={styles.dropdownItemText}>{p.label}</Text>
+                            </Pressable>
+                          ))}
+                        </ScrollView>
+                      </Pressable>
+                    </Pressable>
+                  </Modal>
+                )}
+                {dropdownOpen === 'class' && (
+                  <Modal visible transparent animationType="fade">
+                    <Pressable style={styles.dropdownModal} onPress={() => setDropdownOpen(null)}>
+                      <Pressable style={styles.dropdownList} onPress={(e) => e.stopPropagation()}>
+                        <ScrollView style={{ maxHeight: 300 }}>
+                          {CLASS_LEVELS.map((l) => (
+                            <Pressable
+                              key={l}
+                              style={styles.dropdownItem}
+                              onPress={() => {
+                                setSelectedClassLevel(l);
+                                setDropdownOpen(null);
+                              }}
+                            >
+                              <Text style={styles.dropdownItemText}>{l}</Text>
+                            </Pressable>
+                          ))}
+                        </ScrollView>
+                      </Pressable>
+                    </Pressable>
+                  </Modal>
+                )}
+                {dropdownOpen === 'course' && (
+                  <Modal visible transparent animationType="fade">
+                    <Pressable style={styles.dropdownModal} onPress={() => setDropdownOpen(null)}>
+                      <Pressable style={styles.dropdownList} onPress={(e) => e.stopPropagation()}>
+                        <ScrollView style={{ maxHeight: 300 }}>
+                          {courses.map((c) => (
+                            <Pressable
+                              key={c._id ?? `${c.subject_prefix}-${c.course_number}`}
+                              style={styles.dropdownItem}
+                              onPress={() => {
+                                setSelectedCourse(c);
+                                setDropdownOpen(null);
+                              }}
+                            >
+                              <Text style={styles.dropdownItemText}>
+                                {c.subject_prefix} {c.course_number} – {c.title ?? ''}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </ScrollView>
+                      </Pressable>
+                    </Pressable>
+                  </Modal>
+                )}
+              </>
+            )}
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+              <Pressable style={[styles.modalButton, styles.cancelButton]} onPress={resetAddModal}>
+                <Text style={[styles.buttonText, styles.cancelText]}>Cancel</Text>
               </Pressable>
-              <Pressable
-                style={[styles.modalButton, { backgroundColor: '#3B82F6', marginLeft: 8 }]}
-                onPress={addNewEvent}
-              >
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>Add Event</Text>
-              </Pressable>
+              {addEventType !== null && (
+                <Pressable style={[styles.modalButton, styles.saveButton]} onPress={addNewEvent}>
+                  <Text style={[styles.buttonText, styles.saveText]}>Add Event</Text>
+                </Pressable>
+              )}
             </View>
           </View>
         </View>
