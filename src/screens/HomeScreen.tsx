@@ -1,24 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Modal, TextInput, Alert, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Modal, TextInput, Alert, ActivityIndicator, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ResponsiveButton as Pressable } from '../components/ResponsiveButton';
 import { Ionicons } from '@expo/vector-icons';
 import { nebulaApi } from '../api';
 import type { NebulaEvent } from '../api/nebula.types';
 import { STORAGE_KEYS } from '../context/storageKeys';
+import { useTheme } from '../context/ThemeContext';
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   screenPad: { padding: 16 },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 8,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
   },
   cardLabel: {
-    color: '#374151',
-    fontWeight: '600',
+    color: theme.colors.text,
+    fontFamily: theme.fonts.semiBold,
     marginBottom: 8,
   },
   progressBar: {
@@ -26,23 +28,23 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   progressBarBg: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: theme.colors.border,
   },
   progressBarFill: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
   },
   sectionLabel: {
-    color: '#374151',
-    fontWeight: '600',
+    color: theme.colors.text,
+    fontFamily: theme.fonts.semiBold,
     marginBottom: 12,
   },
   scheduleCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 8,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     width: '100%',
     ...(Platform.OS === 'web' ? { maxWidth: 400, alignSelf: 'center' as const } : {}),
   },
@@ -58,20 +60,20 @@ const styles = StyleSheet.create({
   dateNavLabel: {
     flex: 1,
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontFamily: theme.fonts.semiBold,
+    color: theme.colors.text,
     textAlign: 'center',
   },
   todayButton: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: theme.colors.border,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
   },
   todayButtonText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#374151',
+    fontFamily: theme.fonts.semiBold,
+    color: theme.colors.text,
   },
   scheduleHeader: {
     flexDirection: 'row',
@@ -92,7 +94,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   addButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
     borderRadius: 20,
     width: 40,
     height: 40,
@@ -101,18 +103,18 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   monthlyButton: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.background,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
   },
   viewButtonActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
   },
   monthlyText: {
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: theme.fonts.medium,
   },
   timeGrid: {
     position: 'relative',
@@ -121,14 +123,14 @@ const styles = StyleSheet.create({
   hourLine: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: theme.colors.background,
     ...(Platform.OS === 'web' ? { height: 44 } : { height: 52 }),
   },
   hourLabel: {
     width: 48,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontSize: 11,
-    fontWeight: '500',
+    fontFamily: theme.fonts.medium,
     paddingTop: 6,
   },
   currentTimeLine: {
@@ -136,42 +138,42 @@ const styles = StyleSheet.create({
     left: 48,
     right: 10,
     height: 2,
-    backgroundColor: '#EF4444',
+    backgroundColor: theme.colors.error,
     zIndex: 10,
   },
   currentTimeBubble: {
     position: 'absolute',
     left: 0,
-    backgroundColor: '#EF4444',
+    backgroundColor: theme.colors.error,
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,
     zIndex: 11,
   },
   currentTimeText: {
-    color: '#FFFFFF',
+    color: theme.colors.surface,
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: theme.fonts.semiBold,
   },
   eventBlock: {
     position: 'absolute',
     left: 54,
     right: 10,
-    backgroundColor: '#DBEAFE',
+    backgroundColor: theme.colors.background,
     borderRadius: 6,
     padding: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#3B82F6',
+    borderLeftColor: theme.colors.primary,
     overflow: 'hidden',
   },
   eventTitle: {
-    color: '#1E40AF',
-    fontWeight: '600',
+    color: theme.colors.text,
+    fontFamily: theme.fonts.semiBold,
     fontSize: 12,
     marginBottom: 2,
   },
   eventLocation: {
-    color: '#1E40AF',
+    color: theme.colors.text,
     fontSize: 10,
   },
   scheduleEmpty: {
@@ -183,7 +185,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scheduleEmptyText: {
-    color: '#9CA3AF',
+    color: theme.colors.textSecondary,
     fontSize: 14,
   },
   modalOverlay: {
@@ -193,7 +195,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 24,
     width: '90%',
@@ -201,18 +203,18 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontFamily: theme.fonts.semiBold,
+    color: theme.colors.text,
     marginBottom: 16,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
     fontSize: 14,
-    color: '#1F2937',
+    color: theme.colors.text,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -225,74 +227,74 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.background,
     marginRight: 8,
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
     marginLeft: 8,
   },
   buttonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: theme.fonts.semiBold,
   },
   cancelText: {
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   saveText: {
-    color: '#FFFFFF',
+    color: theme.colors.surface,
   },
   dayDetailBelow: {
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: theme.colors.border,
   },
   dayDetailTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontFamily: theme.fonts.semiBold,
+    color: theme.colors.text,
     marginBottom: 8,
   },
   dayDetailDate: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginBottom: 8,
   },
   dayDetailEvents: {
     marginBottom: 12,
   },
   dayDetailEvent: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.background,
     padding: 8,
     borderRadius: 6,
     marginBottom: 8,
   },
   dayDetailEventTitle: {
-    color: '#1F2937',
-    fontWeight: '500',
+    color: theme.colors.text,
+    fontFamily: theme.fonts.medium,
     fontSize: 14,
   },
   dayDetailEventTime: {
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontSize: 12,
     marginTop: 2,
   },
   dayDetailEventLocation: {
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontSize: 12,
   },
   closeButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
   closeButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.surface,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: theme.fonts.semiBold,
   },
   monthGrid: {
     width: '100%',
@@ -306,17 +308,17 @@ const styles = StyleSheet.create({
     textAlign: 'center' as const,
     paddingVertical: Platform.OS === 'web' ? 4 : 6,
     borderRadius: 4,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.background,
   },
   weekDayText: {
     fontSize: Platform.OS === 'web' ? 10 : 11,
-    fontWeight: '500',
-    color: '#6B7280',
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   weekDayCurrent: {
-    backgroundColor: '#3B82F6',
-    color: '#FFFFFF',
+    backgroundColor: theme.colors.primary,
+    color: theme.colors.surface,
   },
   monthDays: {
     flexDirection: 'row',
@@ -328,23 +330,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     position: 'relative',
   },
+  monthDaySelected: {
+    backgroundColor: theme.colors.border,
+  },
   monthDayToday: {
-    backgroundColor: '#DBEAFE',
-    borderColor: '#3B82F6',
+    backgroundColor: theme.colors.background,
+    borderColor: theme.colors.primary,
   },
   monthDayText: {
     fontSize: Platform.OS === 'web' ? 12 : 14,
-    fontWeight: '500',
-    color: '#374151',
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.text,
   },
   monthDayTodayText: {
-    color: '#1E40AF',
-    fontWeight: '600',
+    color: theme.colors.text,
+    fontFamily: theme.fonts.semiBold,
   },
   monthDayEvent: {
     position: 'absolute',
@@ -354,15 +359,15 @@ const styles = StyleSheet.create({
     width: 12,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
   },
   monthDayHasEvents: {
-    borderColor: '#93C5FD',
-    backgroundColor: '#EFF6FF',
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.background,
   },
   dateDisplay: {
     fontSize: 12,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginTop: 2,
   },
   typeSelectorRow: {
@@ -379,19 +384,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   typeButtonInactive: {
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
   },
   typeButtonDisabled: {
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F3F4F6',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
     opacity: 0.7,
   },
   typeButtonActive: {
-    borderColor: '#3B82F6',
-    backgroundColor: '#EFF6FF',
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.background,
   },
-  typeButtonText: { fontSize: 14, fontWeight: '600' },
+  typeButtonText: { fontSize: 14, fontFamily: theme.fonts.semiBold },
   dateDropdownRow: {
     flexDirection: 'row',
     gap: 8,
@@ -402,7 +407,7 @@ const styles = StyleSheet.create({
   },
   dropdownTrigger: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
@@ -410,8 +415,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  dropdownPlaceholder: { color: '#9CA3AF', fontSize: 14 },
-  dropdownValue: { color: '#1F2937', fontSize: 14 },
+  dropdownPlaceholder: { color: theme.colors.textSecondary, fontSize: 14 },
+  dropdownValue: { color: theme.colors.text, fontSize: 14 },
   dropdownModal: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -427,9 +432,9 @@ const styles = StyleSheet.create({
   dropdownItem: {
     padding: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: theme.colors.background,
   },
-  dropdownItemText: { fontSize: 14, color: '#1F2937' },
+  dropdownItemText: { fontSize: 14, color: theme.colors.text },
 });
 
 // --- Date helpers (real date) ---
@@ -475,6 +480,7 @@ interface Event {
 }
 
 type AddEventType = 'event' | 'course' | null;
+type RecurrenceType = 'none' | 'daily' | 'weekly';
 
 // UTD class levels for course dropdown (Nebula API uses these strings)
 const CLASS_LEVELS = ['Undergraduate', 'Graduate'];
@@ -491,6 +497,8 @@ function toDateString(day: number, month: number, year: number): string {
 }
 
 export const HomeScreen: React.FC = () => {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const todayDate = getTodayDateString();
   const [viewMode, setViewMode] = useState<'today' | 'month'>('today');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -501,6 +509,7 @@ export const HomeScreen: React.FC = () => {
   const [viewingMonth, setViewingMonth] = useState(() => new Date().getMonth());
   const [viewingYear, setViewingYear] = useState(() => new Date().getFullYear());
   const [addEventType, setAddEventType] = useState<AddEventType>(null);
+  const [recurrence, setRecurrence] = useState<RecurrenceType>('none');
 
   // Campus event path
   const [campusEvents, setCampusEvents] = useState<FlattenedCampusEvent[]>([]);
@@ -797,8 +806,28 @@ export const HomeScreen: React.FC = () => {
     return { hour: 9, minute: 0 };
   }
 
+  const generateRecurrenceDates = (baseDate: string, rec: RecurrenceType): string[] => {
+    if (rec === 'none') return [baseDate];
+    const dates = [];
+    const base = new Date(baseDate + 'T12:00:00');
+    
+    // Create 30 days for daily, 15 weeks for weekly
+    const count = rec === 'daily' ? 30 : 15;
+    const increment = rec === 'daily' ? 1 : 7;
+    
+    for (let i = 0; i < count; i++) {
+      const d = new Date(base.getTime());
+      d.setDate(d.getDate() + (i * increment));
+      dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    }
+    return dates;
+  };
+
   const addNewEvent = async () => {
-    const targetDate = addEventDate;
+    const datesToSchedule = generateRecurrenceDates(addEventDate, recurrence);
+    let newEvents: Event[] = [];
+    let nextId = events.length > 0 ? Math.max(...events.map(e => e.id)) + 1 : 1;
+
     if (addEventType === 'event' && selectedCampusEvent) {
       if (selectedCampusEvent.id === 'demo-9001') {
         const demoModule = await import('../config/demoEvent').catch(() => null);
@@ -812,32 +841,40 @@ export const HomeScreen: React.FC = () => {
       }
       const { hour, minute } = parseStartTime(selectedCampusEvent.start_time);
       const loc = selectedCampusEvent.location ?? `${selectedCampusEvent.building} ${selectedCampusEvent.room}`;
-      const newEv: Event = {
-        id: events.length + 1,
-        title: selectedCampusEvent.summary,
-        location: loc,
-        date: targetDate,
-        startHour: hour,
-        startMinute: minute,
-      };
-      setEvents([...events, newEv]);
+      
+      datesToSchedule.forEach((dateStr) => {
+        newEvents.push({
+          id: nextId++,
+          title: selectedCampusEvent.summary,
+          location: loc,
+          date: dateStr,
+          startHour: hour,
+          startMinute: minute,
+        });
+      });
+      
+      setEvents([...events, ...newEvents]);
       resetAddModal();
-      Alert.alert('Success', 'Campus event added to your schedule!');
+      Alert.alert('Success', `${datesToSchedule.length} campus event(s) added to your schedule!`);
       return;
     }
     if (addEventType === 'course' && selectedCourse) {
       const title = [selectedCourse.subject_prefix, selectedCourse.course_number].filter(Boolean).join(' ') + (selectedCourse.title ? ` - ${selectedCourse.title}` : '');
-      const newEv: Event = {
-        id: events.length + 1,
-        title: title.trim(),
-        location: 'TBD',
-        date: targetDate,
-        startHour: 9,
-        startMinute: 0,
-      };
-      setEvents([...events, newEv]);
+      
+      datesToSchedule.forEach((dateStr) => {
+        newEvents.push({
+          id: nextId++,
+          title: title.trim(),
+          location: 'TBD',
+          date: dateStr,
+          startHour: 9,
+          startMinute: 0,
+        });
+      });
+      
+      setEvents([...events, ...newEvents]);
       resetAddModal();
-      Alert.alert('Success', 'Course added to your schedule!');
+      Alert.alert('Success', `${datesToSchedule.length} course event(s) added to your schedule!`);
       return;
     }
     Alert.alert('Select an option', addEventType === 'event' ? 'Please select a campus event.' : 'Please select subject, class level, and course.');
@@ -846,6 +883,7 @@ export const HomeScreen: React.FC = () => {
   function resetAddModal() {
     setShowAddModal(false);
     setAddEventType(null);
+    setRecurrence('none');
     setSelectedCampusEvent(null);
     setSelectedSubjectPrefix(null);
     setSelectedClassLevel(null);
@@ -979,6 +1017,7 @@ export const HomeScreen: React.FC = () => {
                     key={day}
                     style={[
                       styles.monthDay,
+                      selectedDay === day && styles.monthDaySelected,
                       todayFlag && styles.monthDayToday,
                       dayEvents.length > 0 && styles.monthDayHasEvents,
                     ]}
@@ -1034,7 +1073,7 @@ export const HomeScreen: React.FC = () => {
             <Text style={styles.modalTitle}>Add New Event</Text>
 
             {/* Day / Month / Year dropdowns – must be set before choosing type */}
-            <Text style={{ marginBottom: 8, color: '#6B7280', fontSize: 14 }}>Date</Text>
+            <Text style={{ marginBottom: 8, color: theme.colors.textSecondary, fontSize: 14 }}>Date</Text>
             <View style={styles.dateDropdownRow}>
               <View style={styles.dateDropdownThird}>
                 <Pressable
@@ -1115,26 +1154,48 @@ export const HomeScreen: React.FC = () => {
               </Modal>
             )}
 
+            <Text style={{ marginBottom: 8, color: theme.colors.textSecondary, fontSize: 14 }}>Recurrence</Text>
+            <View style={styles.typeSelectorRow}>
+              <Pressable
+                style={[styles.typeButton, recurrence === 'none' ? styles.typeButtonActive : styles.typeButtonInactive, { paddingVertical: 8 }]}
+                onPress={() => setRecurrence('none')}
+              >
+                <Text style={[styles.typeButtonText, { color: recurrence === 'none' ? theme.colors.primary : theme.colors.textSecondary }]}>None</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.typeButton, recurrence === 'daily' ? styles.typeButtonActive : styles.typeButtonInactive, { paddingVertical: 8 }]}
+                onPress={() => setRecurrence('daily')}
+              >
+                <Text style={[styles.typeButtonText, { color: recurrence === 'daily' ? theme.colors.primary : theme.colors.textSecondary }]}>Daily</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.typeButton, recurrence === 'weekly' ? styles.typeButtonActive : styles.typeButtonInactive, { paddingVertical: 8 }]}
+                onPress={() => setRecurrence('weekly')}
+              >
+                <Text style={[styles.typeButtonText, { color: recurrence === 'weekly' ? theme.colors.primary : theme.colors.textSecondary }]}>Weekly</Text>
+              </Pressable>
+            </View>
+
             {(() => {
               const daysInSelected = getDaysInMonth(addEventMonth, addEventYear);
               const dateReady = addEventDay >= 1 && addEventDay <= daysInSelected;
               return addEventType === null ? (
                 <>
-                  <Text style={{ marginBottom: 12, color: '#6B7280', fontSize: 14 }}>What would you like to add?</Text>
+                  <Text style={{ marginBottom: 12, color: theme.colors.textSecondary, fontSize: 14 }}>What would you like to add?</Text>
                   <View style={styles.typeSelectorRow}>
                     <Pressable
                       style={[styles.typeButton, dateReady ? styles.typeButtonInactive : styles.typeButtonDisabled]}
                       onPress={() => dateReady && setAddEventType('event')}
                       disabled={!dateReady}
                     >
-                      <Text style={[styles.typeButtonText, { color: dateReady ? '#374151' : '#9CA3AF' }]}>Campus Event</Text>
+                      <Text style={[styles.typeButtonText, { color: dateReady ? theme.colors.text : theme.colors.textSecondary }]}>Campus Event</Text>
                     </Pressable>
                     <Pressable
                       style={[styles.typeButton, dateReady ? styles.typeButtonInactive : styles.typeButtonDisabled]}
                       onPress={() => dateReady && setAddEventType('course')}
                       disabled={!dateReady}
                     >
-                      <Text style={[styles.typeButtonText, { color: dateReady ? '#374151' : '#9CA3AF' }]}>Course</Text>
+                      <Text style={[styles.typeButtonText, { color: dateReady ? theme.colors.text : theme.colors.textSecondary }]}>Course</Text>
                     </Pressable>
                   </View>
                 </>
@@ -1144,11 +1205,11 @@ export const HomeScreen: React.FC = () => {
             {addEventType === 'event' ? (
               <>
                 <Pressable onPress={() => setAddEventType(null)} style={{ marginBottom: 8 }}>
-                  <Text style={{ fontSize: 13, color: '#3B82F6' }}>← Back (change type)</Text>
+                  <Text style={{ fontSize: 13, color: theme.colors.primary }}>← Back (change type)</Text>
                 </Pressable>
-                <Text style={{ marginBottom: 12, color: '#6B7280', fontSize: 14 }}>Events on this date</Text>
+                <Text style={{ marginBottom: 12, color: theme.colors.textSecondary, fontSize: 14 }}>Events on this date</Text>
                 {campusEventsLoading && !demoEventOption ? (
-                  <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 16 }} />
+                  <ActivityIndicator size="small" color="#C75B12" style={{ marginVertical: 16 }} />
                 ) : (
                   <Pressable
                     style={styles.dropdownTrigger}
@@ -1196,7 +1257,7 @@ export const HomeScreen: React.FC = () => {
                               }}
                             >
                               <Text style={styles.dropdownItemText}>{ev.summary}</Text>
-                              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                              <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
                                 {(ev.location ?? `${ev.building ?? ''} ${ev.room ?? ''}`.trim()) || '—'}
                                 {ev.start_time ? ` · ${ev.start_time}` : ''}
                               </Text>
@@ -1211,13 +1272,13 @@ export const HomeScreen: React.FC = () => {
             ) : (
               <>
                 <Pressable onPress={() => setAddEventType(null)} style={{ marginBottom: 8 }}>
-                  <Text style={{ fontSize: 13, color: '#3B82F6' }}>← Back (change type)</Text>
+                  <Text style={{ fontSize: 13, color: theme.colors.primary }}>← Back (change type)</Text>
                 </Pressable>
-                <Text style={{ marginBottom: 12, color: '#6B7280', fontSize: 14 }}>Narrow down by subject and level, then pick a course</Text>
+                <Text style={{ marginBottom: 12, color: theme.colors.textSecondary, fontSize: 14 }}>Narrow down by subject and level, then pick a course</Text>
                 {subjectPrefixesLoading ? (
                   <View style={{ marginVertical: 16, alignItems: 'center' }}>
-                    <ActivityIndicator size="small" color="#3B82F6" />
-                    <Text style={{ marginTop: 8, fontSize: 13, color: '#6B7280' }}>Loading options…</Text>
+                    <ActivityIndicator size="small" color="#C75B12" />
+                    <Text style={{ marginTop: 8, fontSize: 13, color: theme.colors.textSecondary }}>Loading options…</Text>
                   </View>
                 ) : (
                   <>
@@ -1244,11 +1305,11 @@ export const HomeScreen: React.FC = () => {
                 {!subjectPrefixesLoading && selectedSubjectPrefix && selectedClassLevel && (
                   coursesLoading ? (
                     <View style={{ marginVertical: 16, alignItems: 'center' }}>
-                      <ActivityIndicator size="small" color="#3B82F6" />
-                      <Text style={{ marginTop: 8, fontSize: 13, color: '#6B7280' }}>Loading courses…</Text>
+                      <ActivityIndicator size="small" color="#C75B12" />
+                      <Text style={{ marginTop: 8, fontSize: 13, color: theme.colors.textSecondary }}>Loading courses…</Text>
                     </View>
                   ) : courses.length === 0 ? (
-                    <Text style={{ marginVertical: 12, fontSize: 14, color: '#6B7280' }}>No courses found for this subject and level.</Text>
+                    <Text style={{ marginVertical: 12, fontSize: 14, color: theme.colors.textSecondary }}>No courses found for this subject and level.</Text>
                   ) : (
                     <Pressable
                       style={styles.dropdownTrigger}

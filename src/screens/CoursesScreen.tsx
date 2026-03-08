@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import {
-  View, Text, ScrollView, Pressable, StyleSheet, SafeAreaView,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
+import { ResponsiveButton as Pressable } from '../components/ResponsiveButton';
 import { Ionicons } from '@expo/vector-icons';
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
@@ -71,7 +70,7 @@ const allCoursesFlat = SEMESTERS.flatMap(s => s.courses);
 const courseById = Object.fromEntries(allCoursesFlat.map(c => [c.id, c]));
 
 const TYPE_COLORS = {
-  major:    { bg: '#EFF6FF', border: '#BFDBFE', badge: '#2563EB', badgeText: '#1E40AF' },
+  major:    { bg: '#E8F4EC', border: '#BFDBFE', badge: '#2563EB', badgeText: '#154734' },
   core:     { bg: '#F0FDF4', border: '#BBF7D0', badge: '#16A34A', badgeText: '#166534' },
   elective: { bg: '#FFF7ED', border: '#FED7AA', badge: '#EA580C', badgeText: '#9A3412' },
 };
@@ -123,7 +122,7 @@ const s = StyleSheet.create({
   // Course Tracker card
   card:         { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 16, padding: 18 },
   cardTop:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  cardIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  cardIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#E8F4EC', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center' },
   cardTitle:    { fontSize: 13, fontWeight: '600', color: '#111827' },
   cardSub:      { fontSize: 10, color: '#6B7280', marginTop: 1 },
@@ -145,7 +144,7 @@ const s = StyleSheet.create({
   gtYear:       { fontSize: 11, color: '#6B7280', letterSpacing: 1 },
   pctLabel:     { fontSize: 10, letterSpacing: 2, color: '#6B7280', textTransform: 'uppercase' },
   pctNum:       { fontSize: 42, fontWeight: '900', color: '#2563EB', lineHeight: 48, marginTop: 2 },
-  pctSuffix:    { fontSize: 18, color: '#93C5FD' },
+  pctSuffix:    { fontSize: 18, color: '#E29A6B' },
   credNum:      { fontSize: 20, fontWeight: '600', color: '#111827', textAlign: 'right' },
   credTotal:    { fontSize: 10, color: '#9CA3AF', letterSpacing: 1.5, textAlign: 'right' },
   bigBarTrack:  { height: 10, backgroundColor: '#E5E7EB', borderRadius: 5, overflow: 'hidden', marginTop: 10 },
@@ -188,7 +187,7 @@ const s = StyleSheet.create({
   gradeRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
   gradeCourseCode: { fontSize: 13, fontWeight: '600', color: '#111827' },
   gradeCourseName: { fontSize: 11, color: '#6B7280', marginTop: 2, maxWidth: 220 },
-  gradeLetterWrap: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' },
+  gradeLetterWrap: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#E8F4EC', alignItems: 'center', justifyContent: 'center' },
   gradeLetter:     { fontSize: 14, fontWeight: '700', color: '#2563EB' },
 });
 
@@ -306,7 +305,7 @@ function GradTrackerScreen({ completed, setCompleted, onBack }: {
                           style={[
                             s.courseRow,
                             {
-                              backgroundColor: done ? '#EFF6FF' : locked ? '#F9FAFB' : tc.bg,
+                              backgroundColor: done ? '#E8F4EC' : locked ? '#F9FAFB' : tc.bg,
                               borderColor:     done ? '#BFDBFE' : locked ? '#E5E7EB' : tc.border,
                               opacity: locked ? 0.6 : done ? 0.7 : 1,
                             },

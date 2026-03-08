@@ -4,6 +4,7 @@ import {
   Linking, Platform, Alert, TextInput, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 const UTD_BUILDINGS = [
   { id: '1',   name: 'Berkner Hall',                                       abbr: 'BE',      lat: 32.987717, lng: -96.750458 },
@@ -160,6 +161,7 @@ function openNavigation(lat: number, lng: number) {
 }
 
 export const MapScreen: React.FC = () => {
+  const { theme } = useTheme();
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const [selected, setSelected] = useState<Building | null>(null);
@@ -189,28 +191,28 @@ export const MapScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       {/* ── WEB FALLBACK MAP ── */}
-      <View style={styles.webFallback}>
-        <Ionicons name="map" size={64} color="#3B82F6" />
-        <Text style={styles.webFallbackTitle}>UTD Campus Map</Text>
-        <Text style={styles.webFallbackSub}>Search for buildings below to get walking directions</Text>
+      <View style={[styles.webFallback, { backgroundColor: theme.colors.background }]}>
+        <Ionicons name="map" size={64} color={theme.colors.primary} />
+        <Text style={[styles.webFallbackTitle, { color: theme.colors.text, fontFamily: theme.fonts.semiBold }]}>UTD Campus Map</Text>
+        <Text style={[styles.webFallbackSub, { color: theme.colors.textSecondary, fontFamily: theme.fonts.regular }]}>Search for buildings below to get walking directions</Text>
         
         {/* Building List */}
-        <View style={styles.buildingListContainer}>
-          <Text style={styles.buildingListTitle}>Popular Buildings</Text>
+        <View style={[styles.buildingListContainer, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.buildingListTitle, { color: theme.colors.text, fontFamily: theme.fonts.semiBold }]}>Popular Buildings</Text>
           <FlatList
             data={filtered.slice(0, 8)}
             keyExtractor={(b) => b.id}
             style={styles.buildingList}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.buildingListItem} onPress={() => selectBuilding(item)}>
+              <TouchableOpacity style={[styles.buildingListItem, { borderBottomColor: theme.colors.border }]} onPress={() => selectBuilding(item)}>
                 <View style={styles.buildingListItemContent}>
                   <View>
-                    <Text style={styles.buildingListItemName}>{item.name}</Text>
-                    {item.abbr && <Text style={styles.buildingListItemAbbr}>{item.abbr}</Text>}
+                    <Text style={[styles.buildingListItemName, { color: theme.colors.text, fontFamily: theme.fonts.medium }]}>{item.name}</Text>
+                    {item.abbr && <Text style={[styles.buildingListItemAbbr, { color: theme.colors.textSecondary, fontFamily: theme.fonts.regular }]}>{item.abbr}</Text>}
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+                  <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
                 </View>
               </TouchableOpacity>
             )}
@@ -220,39 +222,39 @@ export const MapScreen: React.FC = () => {
 
       {/* ── SEARCH BAR ── */}
       <View style={styles.searchWrapper}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color="#6B7280" style={{ marginRight: 8 }} />
+        <View style={[styles.searchBox, { backgroundColor: theme.colors.surface }]}>
+          <Ionicons name="search" size={18} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.colors.text, fontFamily: theme.fonts.regular }]}
             placeholder="Search UTD buildings…"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.colors.textSecondary}
             value={search}
             onChangeText={(t) => { setSearch(t); setShowList(true); }}
             onFocus={() => setShowList(true)}
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => { setSearch(''); setShowList(false); }}>
-              <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+              <Ionicons name="close-circle" size={18} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
 
         {showList && (
-          <View style={styles.dropdown}>
+          <View style={[styles.dropdown, { backgroundColor: theme.colors.surface }]}>
             <FlatList
               data={filtered.slice(0, 30)}
               keyExtractor={(b) => b.id}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.dropdownItem} onPress={() => selectBuilding(item)}>
-                  <Ionicons name="business" size={16} color="#3B82F6" style={{ marginRight: 10 }} />
+                  <Ionicons name="business" size={16} color={theme.colors.primary} style={{ marginRight: 10 }} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.dropdownName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={[styles.dropdownName, { color: theme.colors.text, fontFamily: theme.fonts.medium }]} numberOfLines={1}>{item.name}</Text>
                   </View>
-                  {item.abbr && <Text style={styles.dropdownAbbr}>{item.abbr}</Text>}
+                  {item.abbr && <Text style={[styles.dropdownAbbr, { color: theme.colors.primary, fontFamily: theme.fonts.semiBold }]}>{item.abbr}</Text>}
                 </TouchableOpacity>
               )}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />}
             />
           </View>
         )}
@@ -267,32 +269,31 @@ export const MapScreen: React.FC = () => {
         />
       )}
 
-      {/* ── SELECTED BUILDING PANEL ── */}
       {selected && (
-        <Animated.View style={[styles.panel, { transform: [{ translateY: panelTranslate }] }]}>
-          <View style={styles.panelHandle} />
+        <Animated.View style={[styles.panel, { backgroundColor: theme.colors.surface, transform: [{ translateY: panelTranslate }] }]}>
+          <View style={[styles.panelHandle, { backgroundColor: theme.colors.border }]} />
           <View style={styles.panelHeader}>
-            <View style={[styles.abbrBadge, !selected.abbr && { backgroundColor: '#F3F4F6' }]}>
+            <View style={[styles.abbrBadge, { backgroundColor: theme.colors.primary }, !selected.abbr && { backgroundColor: theme.colors.background }]}>
               {selected.abbr
-                ? <Text style={styles.abbrText}>{selected.abbr}</Text>
-                : <Ionicons name="business" size={16} color="#6B7280" />}
+                ? <Text style={[styles.abbrText, { fontFamily: theme.fonts.semiBold }]}>{selected.abbr}</Text>
+                : <Ionicons name="business" size={16} color={theme.colors.textSecondary} />}
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.panelName} numberOfLines={2}>{selected.name}</Text>
+              <Text style={[styles.panelName, { color: theme.colors.text, fontFamily: theme.fonts.semiBold }]} numberOfLines={2}>{selected.name}</Text>
             </View>
             <TouchableOpacity
               onPress={() => setSelected(null)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close" size={22} color="#9CA3AF" />
+              <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.navBtn} onPress={() => openNavigation(selected.lat, selected.lng)}>
-            <Ionicons name="navigate" size={20} color="#FFF" style={{ marginRight: 8 }} />
-            <Text style={styles.navBtnText}>Get Directions</Text>
+          <TouchableOpacity style={[styles.navBtn, { backgroundColor: theme.colors.primary }]} onPress={() => openNavigation(selected.lat, selected.lng)}>
+            <Ionicons name="navigate" size={20} color={theme.colors.surface} style={{ marginRight: 8 }} />
+            <Text style={[styles.navBtnText, { color: theme.colors.surface, fontFamily: theme.fonts.semiBold }]}>Get Directions</Text>
           </TouchableOpacity>
-          <Text style={styles.navHint}>Opens Google Maps with walking directions</Text>
+          <Text style={[styles.navHint, { color: theme.colors.textSecondary, fontFamily: theme.fonts.regular }]}>Opens Google Maps with walking directions</Text>
         </Animated.View>
       )}
     </View>
@@ -310,7 +311,7 @@ const styles = StyleSheet.create({
     flex: 1, 
     justifyContent: 'center', 
     alignItems: 'center',
-    backgroundColor: '#EFF6FF', 
+    backgroundColor: '#E8F4EC', 
     padding: 20,
     gap: 16,
   },
@@ -419,7 +420,7 @@ const styles = StyleSheet.create({
   dropdownAbbr:  { 
     fontSize: 12, 
     fontWeight: '700', 
-    color: '#3B82F6', 
+    color: '#C75B12', 
     marginLeft: 8 
   },
   separator:     { 
@@ -463,7 +464,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#C75B12',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -487,7 +488,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#C75B12',
     borderRadius: 12,
     paddingVertical: 14,
     marginBottom: 8,

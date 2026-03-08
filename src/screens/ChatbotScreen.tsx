@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import Markdown from 'react-native-markdown-display';
 import { nebulaApi } from '../api';
+import { useTheme } from '../context/ThemeContext';
 
 const styles = StyleSheet.create({
   screenPad: { padding: 16 },
@@ -18,7 +19,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   userMessage: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#C75B12',
     alignSelf: 'flex-end',
   },
   botMessage: {
@@ -48,9 +49,11 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   sendBtn: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#C75B12',
     padding: 12,
     borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sendBtnText: {
     color: '#FFFFFF',
@@ -70,6 +73,8 @@ interface Message {
 }
 
 export const ChatbotScreen: React.FC = () => {
+  const { theme } = useTheme();
+  
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, text: "Hello! I'm your Temoc AI. How can I help you today?", isUser: false }
   ]);
@@ -246,26 +251,28 @@ export const ChatbotScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <ScrollView contentContainerStyle={styles.screenPad} showsVerticalScrollIndicator={false}>
-        <Text style={styles.welcomeText}>Temoc AI</Text>
+        <Text style={[styles.welcomeText, { color: theme.colors.textSecondary, fontFamily: theme.fonts.medium }]}>Temoc AI</Text>
 
         {messages.map((message) => (
           <View
             key={message.id}
             style={[
               styles.messageContainer,
-              message.isUser ? styles.userMessage : styles.botMessage
+              message.isUser ? styles.userMessage : styles.botMessage,
+              message.isUser ? { backgroundColor: theme.colors.primary } : { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
             ]}
           >
             {message.isUser ? (
-              <Text style={styles.messageText}>
+              <Text style={[styles.messageText, { color: theme.colors.surface, fontFamily: theme.fonts.regular }]}>
                 {message.text}
               </Text>
             ) : (
-              <Markdown style={{ body: styles.botMessageText }}>
+              <Markdown style={{ body: { ...styles.botMessageText, color: theme.colors.text, fontFamily: theme.fonts.regular } }}>
                 {message.text}
               </Markdown>
             )}
@@ -273,24 +280,26 @@ export const ChatbotScreen: React.FC = () => {
         ))}
 
         {isTyping && (
-          <View style={[styles.messageContainer, styles.botMessage, { flexDirection: 'row', alignItems: 'center' }]}>
-            <ActivityIndicator size="small" color="#1F2937" style={{ marginRight: 8 }} />
-            <Text style={styles.botMessageText}>Temoc AI is thinking...</Text>
+          <View style={[styles.messageContainer, styles.botMessage, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, flexDirection: 'row', alignItems: 'center' }]}>
+            <ActivityIndicator size="small" color={theme.colors.text} style={{ marginRight: 8 }} />
+            <Text style={[styles.botMessageText, { color: theme.colors.textSecondary, fontFamily: theme.fonts.regular }]}>Temoc AI is thinking...</Text>
           </View>
         )}
       </ScrollView>
 
       <View style={styles.inputContainer}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.inputBorder, color: theme.colors.text, fontFamily: theme.fonts.regular }]}
           value={inputText}
           onChangeText={setInputText}
           placeholder="Ask about courses, schedule, or degree planning..."
-          placeholderTextColor="#9CA3AF"
-          multiline
+          placeholderTextColor={theme.colors.textSecondary}
+          multiline={false}
+          returnKeyType="send"
+          onSubmitEditing={sendMessage}
         />
-        <Pressable style={styles.sendBtn} onPress={sendMessage}>
-          <Ionicons name="send" size={20} color="#FFFFFF" />
+        <Pressable style={[styles.sendBtn, { backgroundColor: theme.colors.primary }]} onPress={sendMessage}>
+          <Ionicons name="send" size={20} color={theme.colors.surface} />
         </Pressable>
       </View>
     </KeyboardAvoidingView>
