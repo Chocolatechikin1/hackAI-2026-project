@@ -70,7 +70,7 @@ export const HelpScreen: React.FC = () => {
           <View style={{ flex: 1 }}>
             <Text style={styles.helpTitle}>How do I add courses to my schedule?</Text>
             <Text style={styles.helpDescription}>
-              Go to the Courses tab, search for your desired course, then tap "Add to Schedule" to add it to your current semester.
+              Go to the Activity Hub tab, search for your desired course, then tap "Add to Schedule" to add it to your current semester.
             </Text>
           </View>
         </View>
