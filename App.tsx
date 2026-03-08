@@ -7,7 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 
 // Import screens
 import { HomeScreen } from './src/screens/HomeScreen';
-import { ScheduleScreen } from './src/screens/ScheduleScreen';
+import { MapScreen } from './src/screens/MapScreen';
 import { ChatbotScreen } from './src/screens/ChatbotScreen';
 import { CoursesScreen } from './src/screens/CoursesScreen';
 import { MoreScreen } from './src/screens/MoreScreen';
@@ -29,7 +29,7 @@ function TabNavigator() {
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Schedule') {
-            iconName = focused ? 'calendar' : 'calendar-outline';
+            iconName = focused ? 'map' : 'map-outline';
           } else if (route.name === 'Chatbot') {
             iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Courses') {
@@ -63,12 +63,12 @@ function TabNavigator() {
       <Tab.Screen 
         name="Home" 
         component={HomeScreen} 
-        options={{ title: 'UTDCourses' }} 
+        options={{ title: 'HOME' }} 
       />
       <Tab.Screen 
         name="Schedule" 
-        component={ScheduleScreen} 
-        options={{ title: 'Schedule' }} 
+        component={MapScreen} 
+        options={{ title: 'Map' }} 
       />
       <Tab.Screen 
         name="Chatbot" 
