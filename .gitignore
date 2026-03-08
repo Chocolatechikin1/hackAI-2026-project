@@ -36,6 +36,9 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 
+# Local demo event config (copy from src/config/demoEvent.template.ts)
+src/config/demoEvent.ts
+
 # OS
 .DS_Store
 Thumbs.db
