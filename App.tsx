@@ -79,7 +79,7 @@ function TabNavigator() {
       <Tab.Screen 
         name="Courses" 
         component={CoursesScreen} 
-        options={{ title: 'Courses' }} 
+        options={{ title: 'Activity Hub' }} 
       />
       <Tab.Screen 
         name="More" 
