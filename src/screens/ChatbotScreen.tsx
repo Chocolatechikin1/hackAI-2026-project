@@ -215,9 +215,8 @@ export const ChatbotScreen: React.FC = () => {
           }
         };
 
-        if (Platform.OS === 'web') {
-          // Web: streaming works; keep existing behavior
-          const response = await ai.models.generateContentStream(requestParams);
+        const executeWebStream = async (params: any) => {
+          const response = await ai.models.generateContentStream(params);
           let isFirstChunk = true;
           for await (const chunk of response) {
             if (isFirstChunk) {
@@ -230,14 +229,40 @@ export const ChatbotScreen: React.FC = () => {
               ));
             }
           }
-        } else {
-          // Mobile (iOS/Android): use non-streaming to avoid "Response body is empty" (RN fetch/stream issues)
-          const response = await ai.models.generateContent(requestParams);
+        };
+
+        const executeMobileText = async (params: any) => {
+          const response = await ai.models.generateContent(params);
           setIsTyping(false);
           const text = response?.text?.trim() ?? '';
           setMessages(prev => prev.map(msg =>
             msg.id === botMessageId ? { ...msg, text: text || 'Sorry, I didn\'t get a response.' } : msg
           ));
+        };
+
+        try {
+          if (Platform.OS === 'web') {
+            // Web: streaming works; keep existing behavior
+            await executeWebStream(requestParams);
+          } else {
+            // Mobile (iOS/Android): use non-streaming to avoid "Response body is empty" (RN fetch/stream issues)
+            await executeMobileText(requestParams);
+          }
+        } catch (error: any) {
+          console.warn('Primary model failed, attempting fallback to gemini-2.5-flash:', error);
+          
+          // Reset message text before trying fallback
+          setMessages(prev => prev.map(msg =>
+            msg.id === botMessageId ? { ...msg, text: '' } : msg
+          ));
+          setIsTyping(true);
+
+          const fallbackParams = { model: 'gemini-2.5-flash', contents };
+          if (Platform.OS === 'web') {
+            await executeWebStream(fallbackParams);
+          } else {
+            await executeMobileText(fallbackParams);
+          }
         }
       } catch (error) {
         setIsTyping(false);
