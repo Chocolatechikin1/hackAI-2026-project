@@ -78,6 +78,7 @@ export const ProfileScreen: React.FC = () => {
         <Text style={styles.profileName}>John Doe</Text>
         <Text style={styles.profileEmail}>john.doe@utdallas.edu</Text>
         <Text style={styles.profileId}>Student ID: 202123456</Text>
+        <Text style={styles.profileId}>NetID: jxd210000</Text>
       </View>
 
       <View style={styles.card}>
@@ -88,19 +89,19 @@ export const ProfileScreen: React.FC = () => {
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Classification</Text>
-          <Text style={styles.infoValue}>Junior</Text>
+          <Text style={styles.infoValue}>Freshman</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>GPA</Text>
-          <Text style={styles.infoValue}>3.2</Text>
+          <Text style={styles.infoValue}>3.89</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Credits Earned</Text>
-          <Text style={styles.infoValue}>84</Text>
+          <Text style={styles.infoValue}>19</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Expected Graduation</Text>
-          <Text style={styles.infoValue}>Spring 2026</Text>
+          <Text style={styles.infoValue}>Spring 2030</Text>
         </View>
       </View>
 
