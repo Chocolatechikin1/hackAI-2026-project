@@ -200,7 +200,7 @@ export const ChatbotScreen: React.FC = () => {
           })),
         ];
 
-        const response = await ai.models.generateContentStream({
+        const requestParams = {
           model: 'gemini-3-flash-preview',
           contents,
           config: {
@@ -208,19 +208,31 @@ export const ChatbotScreen: React.FC = () => {
               thinkingLevel: ThinkingLevel.HIGH,
             }
           }
-        });
+        };
 
-        let isFirstChunk = true;
-        for await (const chunk of response) {
-          if (isFirstChunk) {
-            setIsTyping(false);
-            isFirstChunk = false;
+        if (Platform.OS === 'web') {
+          // Web: streaming works; keep existing behavior
+          const response = await ai.models.generateContentStream(requestParams);
+          let isFirstChunk = true;
+          for await (const chunk of response) {
+            if (isFirstChunk) {
+              setIsTyping(false);
+              isFirstChunk = false;
+            }
+            if (chunk.text) {
+              setMessages(prev => prev.map(msg =>
+                msg.id === botMessageId ? { ...msg, text: msg.text + chunk.text } : msg
+              ));
+            }
           }
-          if (chunk.text) {
-            setMessages(prev => prev.map(msg =>
-              msg.id === botMessageId ? { ...msg, text: msg.text + chunk.text } : msg
-            ));
-          }
+        } else {
+          // Mobile (iOS/Android): use non-streaming to avoid "Response body is empty" (RN fetch/stream issues)
+          const response = await ai.models.generateContent(requestParams);
+          setIsTyping(false);
+          const text = response?.text?.trim() ?? '';
+          setMessages(prev => prev.map(msg =>
+            msg.id === botMessageId ? { ...msg, text: text || 'Sorry, I didn\'t get a response.' } : msg
+          ));
         }
       } catch (error) {
         setIsTyping(false);
