@@ -71,7 +71,7 @@ interface Message {
 
 export const ChatbotScreen: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: "Hello! I'm your AI academic assistant. How can I help you today?", isUser: false }
+    { id: 1, text: "Hello! I'm your Temoc AI. How can I help you today?", isUser: false }
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -169,11 +169,11 @@ export const ChatbotScreen: React.FC = () => {
         text: userText,
         isUser: true
       };
-      
+
       const newMessages = [...messages, newMessage];
       setMessages(newMessages);
       setInputText('');
-      
+
       const botMessageId = Date.now() + 1;
       setMessages(prev => [...prev, { id: botMessageId, text: '', isUser: false }]);
       setIsTyping(true);
@@ -217,15 +217,15 @@ export const ChatbotScreen: React.FC = () => {
             isFirstChunk = false;
           }
           if (chunk.text) {
-             setMessages(prev => prev.map(msg => 
-               msg.id === botMessageId ? { ...msg, text: msg.text + chunk.text } : msg
-             ));
+            setMessages(prev => prev.map(msg =>
+              msg.id === botMessageId ? { ...msg, text: msg.text + chunk.text } : msg
+            ));
           }
         }
       } catch (error) {
         setIsTyping(false);
         console.error("Gemini Error:", error);
-        setMessages(prev => prev.map(msg => 
+        setMessages(prev => prev.map(msg =>
           msg.id === botMessageId ? { ...msg, text: "Sorry, I am having trouble connecting to the AI." } : msg
         ));
       }
@@ -233,15 +233,15 @@ export const ChatbotScreen: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.screenPad} showsVerticalScrollIndicator={false}>
-        <Text style={styles.welcomeText}>AI Academic Assistant</Text>
-        
+        <Text style={styles.welcomeText}>Temoc AI</Text>
+
         {messages.map((message) => (
-          <View 
+          <View
             key={message.id}
             style={[
               styles.messageContainer,
@@ -263,11 +263,11 @@ export const ChatbotScreen: React.FC = () => {
         {isTyping && (
           <View style={[styles.messageContainer, styles.botMessage, { flexDirection: 'row', alignItems: 'center' }]}>
             <ActivityIndicator size="small" color="#1F2937" style={{ marginRight: 8 }} />
-            <Text style={styles.botMessageText}>AI is thinking...</Text>
+            <Text style={styles.botMessageText}>Temoc AI is thinking...</Text>
           </View>
         )}
       </ScrollView>
-      
+
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
