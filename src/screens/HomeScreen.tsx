@@ -229,6 +229,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 14,
   },
+  dayDetailEventTime: {
+    color: '#6B7280',
+    fontSize: 12,
+    marginTop: 2,
+  },
   dayDetailEventLocation: {
     color: '#6B7280',
     fontSize: 12,

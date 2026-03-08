@@ -5,9 +5,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 
-// Import screens
+import { Platform } from 'react-native';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { MapScreen } from './src/screens/MapScreen';
+import { MapScreen as MapScreenWeb } from './src/screens/MapScreen.web';
 import { ChatbotScreen } from './src/screens/ChatbotScreen';
 import { CoursesScreen } from './src/screens/CoursesScreen';
 import { MoreScreen } from './src/screens/MoreScreen';
@@ -67,7 +68,7 @@ function TabNavigator() {
       />
       <Tab.Screen 
         name="Schedule" 
-        component={MapScreen} 
+        component={Platform.OS === 'web' ? MapScreenWeb : MapScreen} 
         options={{ title: 'Map' }} 
       />
       <Tab.Screen 

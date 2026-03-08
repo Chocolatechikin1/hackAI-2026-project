@@ -6,7 +6,27 @@
     "orientation": "portrait",
     "platforms": ["ios", "android", "web"],
     "jsEngine": "hermes",
-    "scheme": "degree-planner"
+    "scheme": "degree-planner",
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+        }
+      ]
+    ],
+    "ios": {
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app uses location to show your position on the campus map.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses location to show your position on the campus map."
+      }
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    }
   }
 }
 

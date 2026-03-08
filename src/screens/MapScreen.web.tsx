@@ -1,34 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  Linking, Platform, Alert, TextInput, Animated, ScrollView,
+  Linking, Platform, Alert, TextInput, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-// Conditional imports for native modules
-let MapView: any = null;
-let Marker: any = null;
-let PROVIDER_GOOGLE: any = null;
-let Location: any = null;
-
-// Only import native modules on non-web platforms
-if (Platform.OS !== 'web') {
-  try {
-    const maps = require('react-native-maps');
-    MapView = maps.default;
-    Marker = maps.Marker;
-    PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
-  } catch (error) {
-    console.log('react-native-maps not available');
-  }
-  
-  try {
-    const expoLocation = require('expo-location');
-    Location = expoLocation.default;
-  } catch (error) {
-    console.log('expo-location not available');
-  }
-}
 
 const UTD_BUILDINGS = [
   { id: '1',   name: 'Berkner Hall',                                       abbr: 'BE',      lat: 32.987717, lng: -96.750458 },
@@ -177,71 +152,19 @@ const UTD_BUILDINGS = [
   { id: '144', name: 'Comets LANding',                                     abbr: null,      lat: 32.987286, lng: -96.749084 },
 ];
 
-const UTD_CENTER = { latitude: 32.9880, longitude: -96.7501 };
-
 type Building = (typeof UTD_BUILDINGS)[0];
 
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function distLabel(km: number) {
-  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
-}
-
 function openNavigation(lat: number, lng: number) {
-  const url =
-    Platform.OS === 'ios'
-      ? `maps://app?daddr=${lat},${lng}&dirflg=w`
-      : `google.navigation:q=${lat},${lng}&mode=w`;
-  Linking.canOpenURL(url).then((ok) =>
-    ok
-      ? Linking.openURL(url)
-      : Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`)
-  );
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`;
+  Linking.openURL(url);
 }
-
-// Web fallback — shown instead of the native map on web
-const WebMapFallback: React.FC = () => (
-  <View style={styles.webFallback}>
-    <Ionicons name="map" size={48} color="#3B82F6" />
-    <Text style={styles.webFallbackTitle}>UTD Campus Map</Text>
-    <Text style={styles.webFallbackSub}>Search for a building below to get walking directions</Text>
-  </View>
-);
 
 export const MapScreen: React.FC = () => {
-  const mapRef = useRef<any>(null);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Building | null>(null);
   const [search, setSearch] = useState('');
   const [showList, setShowList] = useState(false);
-
-  useEffect(() => {
-    // Only request location on native platforms
-    if (Platform.OS !== 'web' && Location) {
-      (async () => {
-        try {
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          if (status !== 'granted') { setLocationError('Location permission denied.'); return; }
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-          setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-        } catch (error) {
-          console.log('Location error:', error);
-          setLocationError('Unable to get location.');
-        }
-      })();
-    }
-  }, []);
 
   useEffect(() => {
     Animated.spring(slideAnim, {
@@ -259,53 +182,41 @@ export const MapScreen: React.FC = () => {
     (b.abbr && b.abbr.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const sorted = userLocation
-    ? [...filtered].sort((a, b) =>
-        haversineKm(userLocation.latitude, userLocation.longitude, a.lat, a.lng) -
-        haversineKm(userLocation.latitude, userLocation.longitude, b.lat, b.lng)
-      )
-    : filtered;
-
   function selectBuilding(b: Building) {
     setSelected(b);
     setShowList(false);
     setSearch('');
-    if (Platform.OS !== 'web') {
-      mapRef.current?.animateToRegion(
-        { latitude: b.lat, longitude: b.lng, latitudeDelta: 0.004, longitudeDelta: 0.004 },
-        600
-      );
-    }
   }
 
   return (
     <View style={styles.root}>
-
-      {/* ── MAP (mobile) or FALLBACK (web) ── */}
-      {Platform.OS === 'web' ? (
-        <WebMapFallback />
-      ) : (
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          initialRegion={{ ...UTD_CENTER, latitudeDelta: 0.014, longitudeDelta: 0.014 }}
-          showsUserLocation
-          showsMyLocationButton={false}
-          showsCompass
-        >
-          {UTD_BUILDINGS.map((b) => (
-            <Marker
-              key={b.id}
-              coordinate={{ latitude: b.lat, longitude: b.lng }}
-              title={b.name}
-              description={b.abbr ?? undefined}
-              pinColor={selected?.id === b.id ? '#EF4444' : '#3B82F6'}
-              onPress={() => selectBuilding(b)}
-            />
-          ))}
-        </MapView>
-      )}
+      {/* ── WEB FALLBACK MAP ── */}
+      <View style={styles.webFallback}>
+        <Ionicons name="map" size={64} color="#3B82F6" />
+        <Text style={styles.webFallbackTitle}>UTD Campus Map</Text>
+        <Text style={styles.webFallbackSub}>Search for buildings below to get walking directions</Text>
+        
+        {/* Building List */}
+        <View style={styles.buildingListContainer}>
+          <Text style={styles.buildingListTitle}>Popular Buildings</Text>
+          <FlatList
+            data={filtered.slice(0, 8)}
+            keyExtractor={(b) => b.id}
+            style={styles.buildingList}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.buildingListItem} onPress={() => selectBuilding(item)}>
+                <View style={styles.buildingListItemContent}>
+                  <View>
+                    <Text style={styles.buildingListItemName}>{item.name}</Text>
+                    {item.abbr && <Text style={styles.buildingListItemAbbr}>{item.abbr}</Text>}
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </View>
 
       {/* ── SEARCH BAR ── */}
       <View style={styles.searchWrapper}>
@@ -329,47 +240,23 @@ export const MapScreen: React.FC = () => {
         {showList && (
           <View style={styles.dropdown}>
             <FlatList
-              data={sorted.slice(0, 30)}
+              data={filtered.slice(0, 30)}
               keyExtractor={(b) => b.id}
               keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => {
-                const dist = userLocation
-                  ? distLabel(haversineKm(userLocation.latitude, userLocation.longitude, item.lat, item.lng))
-                  : null;
-                return (
-                  <TouchableOpacity style={styles.dropdownItem} onPress={() => selectBuilding(item)}>
-                    <Ionicons name="business" size={16} color="#3B82F6" style={{ marginRight: 10 }} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.dropdownName} numberOfLines={1}>{item.name}</Text>
-                      {dist && <Text style={styles.dropdownDist}>{dist} away</Text>}
-                    </View>
-                    {item.abbr && <Text style={styles.dropdownAbbr}>{item.abbr}</Text>}
-                  </TouchableOpacity>
-                );
-              }}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.dropdownItem} onPress={() => selectBuilding(item)}>
+                  <Ionicons name="business" size={16} color="#3B82F6" style={{ marginRight: 10 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dropdownName} numberOfLines={1}>{item.name}</Text>
+                  </View>
+                  {item.abbr && <Text style={styles.dropdownAbbr}>{item.abbr}</Text>}
+                </TouchableOpacity>
+              )}
               ItemSeparatorComponent={() => <View style={styles.separator} />}
             />
           </View>
         )}
       </View>
-
-      {/* ── LOCATE ME (mobile only) ── */}
-      {Platform.OS !== 'web' && (
-        <TouchableOpacity
-          style={styles.locateBtn}
-          onPress={() => {
-            if (!userLocation) {
-              Alert.alert('Location unavailable', locationError ?? 'Cannot get location.');
-              return;
-            }
-            mapRef.current?.animateToRegion(
-              { ...userLocation, latitudeDelta: 0.005, longitudeDelta: 0.005 }, 500
-            );
-          }}
-        >
-          <Ionicons name="locate" size={22} color="#3B82F6" />
-        </TouchableOpacity>
-      )}
 
       {/* ── BACKDROP to close dropdown ── */}
       {showList && (
@@ -392,11 +279,6 @@ export const MapScreen: React.FC = () => {
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.panelName} numberOfLines={2}>{selected.name}</Text>
-              {userLocation && (
-                <Text style={styles.panelDist}>
-                  {distLabel(haversineKm(userLocation.latitude, userLocation.longitude, selected.lat, selected.lng))} from you
-                </Text>
-              )}
             </View>
             <TouchableOpacity
               onPress={() => setSelected(null)}
@@ -408,79 +290,216 @@ export const MapScreen: React.FC = () => {
 
           <TouchableOpacity style={styles.navBtn} onPress={() => openNavigation(selected.lat, selected.lng)}>
             <Ionicons name="navigate" size={20} color="#FFF" style={{ marginRight: 8 }} />
-            <Text style={styles.navBtnText}>Navigate Here</Text>
+            <Text style={styles.navBtnText}>Get Directions</Text>
           </TouchableOpacity>
-          <Text style={styles.navHint}>Opens Google Maps / Apple Maps · walking directions</Text>
+          <Text style={styles.navHint}>Opens Google Maps with walking directions</Text>
         </Animated.View>
       )}
-
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  map:  { flex: 1 },
+  root: { 
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+  },
 
   // Web fallback
   webFallback: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: '#EFF6FF', gap: 12,
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF', 
+    padding: 20,
+    gap: 16,
   },
-  webFallbackTitle: { fontSize: 20, fontWeight: '700', color: '#1F2937' },
-  webFallbackSub:   { fontSize: 14, color: '#6B7280', textAlign: 'center', paddingHorizontal: 40 },
+  webFallbackTitle: { 
+    fontSize: 24, 
+    fontWeight: '700', 
+    color: '#1F2937',
+    textAlign: 'center',
+  },
+  webFallbackSub: { 
+    fontSize: 16, 
+    color: '#6B7280', 
+    textAlign: 'center',
+    paddingHorizontal: 40,
+    marginBottom: 20,
+  },
+
+  // Building list
+  buildingListContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: 300,
+  },
+  buildingListTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  buildingList: {
+    flex: 1,
+  },
+  buildingListItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  buildingListItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  buildingListItemName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  buildingListItemAbbr: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
 
   // Search
-  searchWrapper: { position: 'absolute', top: 16, left: 16, right: 16, zIndex: 20 },
+  searchWrapper: { 
+    position: 'absolute', 
+    top: 16, 
+    left: 16, 
+    right: 16, 
+    zIndex: 20 
+  },
   searchBox: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF',
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#FFF',
+    borderRadius: 12, 
+    paddingHorizontal: 14, 
+    paddingVertical: 10,
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, 
+    shadowRadius: 8, 
+    elevation: 6,
   },
-  searchInput:   { flex: 1, fontSize: 15, color: '#1F2937' },
+  searchInput:   { 
+    flex: 1, 
+    fontSize: 15, 
+    color: '#1F2937' 
+  },
   dropdown: {
-    backgroundColor: '#FFF', borderRadius: 12, marginTop: 6,
-    maxHeight: 300, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12, shadowRadius: 10, elevation: 8,
+    backgroundColor: '#FFF', 
+    borderRadius: 12, 
+    marginTop: 6,
+    maxHeight: 300, 
+    overflow: 'hidden',
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12, 
+    shadowRadius: 10, 
+    elevation: 8,
   },
-  dropdownItem:  { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
-  dropdownName:  { fontSize: 14, fontWeight: '500', color: '#1F2937' },
-  dropdownDist:  { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
-  dropdownAbbr:  { fontSize: 12, fontWeight: '700', color: '#3B82F6', marginLeft: 8 },
-  separator:     { height: 1, backgroundColor: '#F3F4F6', marginHorizontal: 16 },
-
-  // Locate button
-  locateBtn: {
-    position: 'absolute', bottom: 220, right: 16, zIndex: 10,
-    backgroundColor: '#FFF', width: 46, height: 46, borderRadius: 23,
-    justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15, shadowRadius: 6, elevation: 5,
+  dropdownItem:  { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 16, 
+    paddingVertical: 12 
+  },
+  dropdownName:  { 
+    fontSize: 14, 
+    fontWeight: '500', 
+    color: '#1F2937' 
+  },
+  dropdownAbbr:  { 
+    fontSize: 12, 
+    fontWeight: '700', 
+    color: '#3B82F6', 
+    marginLeft: 8 
+  },
+  separator:     { 
+    height: 1, 
+    backgroundColor: '#F3F4F6', 
+    marginHorizontal: 16 
   },
 
-  // Bottom panel
+  // Panel
   panel: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 15,
-    backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 20, paddingBottom: 40,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12, shadowRadius: 16, elevation: 12,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 12,
   },
-  panelHandle:  { width: 40, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  panelHeader:  { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
+  panelHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  panelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   abbrBadge: {
-    backgroundColor: '#EFF6FF', borderRadius: 8, paddingHorizontal: 10,
-    paddingVertical: 6, minWidth: 52, alignItems: 'center', justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  abbrText:    { fontSize: 13, fontWeight: '800', color: '#3B82F6', letterSpacing: 0.5 },
-  panelName:   { fontSize: 15, fontWeight: '600', color: '#1F2937' },
-  panelDist:   { fontSize: 13, color: '#6B7280', marginTop: 3 },
+  abbrText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  panelName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    flex: 1,
+  },
+  panelDist: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
   navBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#3B82F6', borderRadius: 14, paddingVertical: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginBottom: 8,
   },
-  navBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  navHint:    { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 10 },
+  navBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  navHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
 });
